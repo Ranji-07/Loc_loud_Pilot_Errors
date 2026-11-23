@@ -1,0 +1,70 @@
+{
+  "name": "localpilot",
+  "displayName": "LocalPilot",
+  "description": "Status, guided setup and usage for the LocalPilot self-hosted AI engineering platform.",
+  "version": "0.1.0",
+  "publisher": "localpilot",
+  "license": "MIT",
+  "private": true,
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Other"],
+  "main": "./out/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "configuration": {
+      "title": "LocalPilot",
+      "properties": {
+        "localpilot.serverUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8765",
+          "description": "LocalPilot backend URL. Must be a loopback address."
+        },
+        "localpilot.repoPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the LocalPilot repository (used by 'Start backend'). Empty = auto-detect from the open workspace."
+        },
+        "localpilot.pollSeconds": { "type": "number", "default": 30, "minimum": 5 }
+      }
+    },
+    "commands": [
+      { "command": "localpilot.openDashboard", "title": "LocalPilot: Open Dashboard", "icon": "$(link-external)" },
+      { "command": "localpilot.openGuide", "title": "LocalPilot: Open Setup Guide" },
+      { "command": "localpilot.showUsage", "title": "LocalPilot: Show Usage" },
+      { "command": "localpilot.showHealth", "title": "LocalPilot: Show Health" },
+      { "command": "localpilot.startBackend", "title": "LocalPilot: Start Backend" },
+      { "command": "localpilot.refresh", "title": "LocalPilot: Refresh", "icon": "$(refresh)" }
+    ],
+    "viewsContainers": {
+      "activitybar": [{ "id": "localpilot", "title": "LocalPilot", "icon": "media/localpilot.svg" }]
+    },
+    "views": {
+      "localpilot": [
+        { "id": "localpilot.health", "name": "Health" },
+        { "id": "localpilot.guides", "name": "Setup guides" }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        { "command": "localpilot.refresh", "when": "view == localpilot.health", "group": "navigation" },
+        { "command": "localpilot.openDashboard", "when": "view == localpilot.health", "group": "navigation" }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "localpilot.health",
+        "contents": "The LocalPilot backend is not reachable.\n[Start backend](command:localpilot.startBackend)\n[Open dashboard](command:localpilot.openDashboard)"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "package": "tsc -p . && vsce package --allow-missing-repository --skip-license --out localpilot-0.1.0.vsix"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "~1.90.0",
+    "@vscode/vsce": "^4.1.1",
+    "typescript": "~5.9.0"
+  }
+}

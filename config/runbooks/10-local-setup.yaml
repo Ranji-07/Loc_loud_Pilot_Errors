@@ -1,0 +1,49 @@
+id: local-setup
+title: Local setup (laptop)
+summary: Check Python, Ollama and the small helper model on this laptop. Everything stays local and free.
+category: setup
+order: 10
+steps:
+  - id: check-python
+    title: Check the backend Python
+    explain: LocalPilot's backend runs on this Python. It must be 3.11 or newer.
+    command: '{python} --version'
+    expected: Python 3.11 or newer
+  - id: check-ollama
+    title: Check Ollama is running
+    explain: Ollama serves local models on http://127.0.0.1:11434. If this fails, open the Ollama app from the Start menu.
+    command: ollama --version
+    check: Invoke-RestMethod http://127.0.0.1:11434/api/version
+    expected: ollama version is 0.x
+  - id: models-location
+    title: Check where models are stored
+    explain: >-
+      Models should live on E: (OLLAMA_MODELS=E:\LocalPilot\ollama\models) because C: has little free space.
+      To change it, set the user environment variable OLLAMA_MODELS and restart the Ollama app.
+    command: "[Environment]::GetEnvironmentVariable('OLLAMA_MODELS','User')"
+    expected: E:\LocalPilot\ollama\models
+  - id: pull-helper-model
+    title: Pull the helper model
+    explain: >-
+      {small_model} is a ~400 MB model used only to summarise usage reports. All numbers come from scripts;
+      the model just rephrases them. Downloads from the Ollama registry.
+    command: ollama pull {small_model}
+    risk: medium
+    check: ollama show {small_model}
+    expected: success
+    rollback: ollama rm {small_model}
+  - id: test-helper-model
+    title: Test the helper model
+    explain: Runs one short prompt on the laptop CPU. First run loads the model into RAM (a few seconds).
+    command: 'ollama run {small_model} "Reply with exactly one word: ready"'
+    expected: ready
+  - id: check-tools
+    title: Check AWS CLI and VS Code CLI
+    explain: These are needed for the AWS trial and the VS Code extension guides.
+    command: aws --version; code --version
+    expected: aws-cli/2.x and a VS Code version number
+  - id: health-report
+    title: Full health report
+    explain: Calls LocalPilot's own health endpoint. The Overview page shows the same data.
+    command: Invoke-RestMethod http://127.0.0.1:{port}/api/v1/health | ConvertTo-Json -Depth 4
+    expected: '"status": "ok" or "warn" with explanations'

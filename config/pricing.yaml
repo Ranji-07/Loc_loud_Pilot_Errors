@@ -1,0 +1,12 @@
+# Hourly on-demand Linux prices (USD) from the AWS Pricing API, read 2026-11-23.
+# Re-check before relying on them; taxes and data transfer are not included.
+source: "AWS Pricing API (on-demand, Linux, shared tenancy), read 2026-11-23"
+currency: USD
+aws:
+  eu-north-1:
+    instances:
+      t3.small: 0.0216
+      t3.medium: 0.0432
+      g4dn.xlarge: 0.558
+      g5.xlarge: 1.067
+    ebs_gp3_gb_month: 0.0836
