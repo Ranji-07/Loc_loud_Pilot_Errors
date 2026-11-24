@@ -2,10 +2,10 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { registerDroid } from "./droid";
+import { client, serverUrl, Health, Check, RunbookSummary, ApiFn } from "./client";
+import { registerCockpit } from "./cockpit";
 
-type Check = { name: string; status: string; detail: string };
-type Health = { version: string; status: string; checks: Check[] };
-type Runbook = { id: string; title: string; summary: string; steps: number };
+type Runbook = RunbookSummary;
 type Usage = { id: number; alerts: { level: string; text: string }[]; local?: { cpu_percent: number; ram_used_percent: number } };
 
 const ICONS: Record<string, string> = {
@@ -16,30 +16,7 @@ function config() {
   return vscode.workspace.getConfiguration("localpilot");
 }
 
-function serverUrl(): string {
-  const url = config().get<string>("serverUrl", "http://127.0.0.1:8765").replace(/\/+$/, "");
-  const host = new URL(url).hostname;
-  if (!["127.0.0.1", "localhost", "[::1]"].includes(host)) {
-    throw new Error("localpilot.serverUrl must point to a loopback address");
-  }
-  return url;
-}
-
-async function api<T>(p: string, method = "GET", body?: unknown): Promise<T> {
-  const headers: Record<string, string> = { "x-localpilot-client": "1", "x-localpilot-surface": "vscode" };
-  if (body !== undefined) headers["content-type"] = "application/json";
-  const r = await fetch(`${serverUrl()}/api/v1${p}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(method === "GET" ? 15000 : 120000),
-  });
-  if (!r.ok) {
-    const data = (await r.json().catch(() => ({}))) as { error?: string };
-    throw new Error(data.error ?? `${r.status} ${r.statusText}`);
-  }
-  return (await r.json()) as T;
-}
+const api: ApiFn = client.call;
 
 class HealthTree implements vscode.TreeDataProvider<Check> {
   private emitter = new vscode.EventEmitter<void>();
@@ -188,6 +165,7 @@ export function activate(ctx: vscode.ExtensionContext) {
     vscode.window.registerTreeDataProvider("localpilot.guides", guideTree),
   );
   registerDroid(ctx, api, (hash) => openInVsCode(`${serverUrl()}/${hash}`), config);
+  registerCockpit(ctx, (hash) => openInVsCode(`${serverUrl()}/${hash}`));
   refresh();
   const timer = setInterval(refresh, Math.max(5, config().get<number>("pollSeconds", 30)) * 1000);
   ctx.subscriptions.push({ dispose: () => clearInterval(timer) });

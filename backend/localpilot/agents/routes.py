@@ -26,6 +26,10 @@ class DecideBody(BaseModel):
     comment: str | None = None
 
 
+class RollbackBody(BaseModel):
+    approved: bool = False
+
+
 def _mgr(req: Request) -> DroidManager:
     return req.app.state.droid
 
@@ -108,3 +112,17 @@ def approval(approval_id: str, req: Request) -> dict[str, Any]:
 @router.post("/approvals/{approval_id}/decide")
 async def decide(approval_id: str, body: DecideBody, req: Request) -> dict[str, Any]:
     return _mgr(req).decide(approval_id, body.decision, body.comment, actor=_actor(req))
+
+
+@router.get("/agents/runs/{run_id}/checkpoints")
+def checkpoints(run_id: str, req: Request):
+    _mgr(req).get_run(run_id)
+    return _mgr(req).checkpoints.list(run_id)
+
+
+@router.post("/checkpoints/{id}/rollback")
+def rollback(id: str, body: RollbackBody, req: Request):
+    from .droid import AgentError
+    if not body.approved:
+        raise AgentError("Rollback requires explicit approval", 403)
+    return _mgr(req).checkpoints.rollback(id, _actor(req))

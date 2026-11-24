@@ -1,6 +1,6 @@
 # Screen status
 
-Checked 2026-11-24 against the built dashboard and real backend at `127.0.0.1:8765`. Scope approved at stop point B: real APIs only, read-only backend Settings. Stop point C is reached before Phase 5, not full completion of the master prompt.
+Phase 4 baseline checked 2026-11-24 against the built dashboard and real backend at `127.0.0.1:8765`. Scope approved at stop point B: real APIs only, read-only backend Settings. Stop point C was subsequently approved. Phase 5 is now paused at the user's request, not complete.
 
 All 12 navigation pages and six detail sections have screenshots at **1366, 820 and 390 px, dark and light**: 108 combinations in `.screens/step10-*.png`. No page errors or horizontal overflow in the final checks. Prompt Studio's mobile overflow was found and fixed, then retested at all six combinations.
 
@@ -34,7 +34,22 @@ All 12 navigation pages and six detail sections have screenshots at **1366, 820 
 ## Not claimed as complete
 
 - No new paid Droid run was used in the final automated suite. Earlier real-Droid approval evidence remains in the stop-B record.
-- VS Code ↔ dashboard approval round trip is not tested yet; it belongs to Phase 5.
+- VS Code ↔ dashboard approval round trip was subsequently exercised during Phase 5; see below.
 - Backend Settings save/reset is deliberately absent, not a skipped editable-settings test.
-- Notification centre, advanced diff/rollback, full task/project/prompt stores, mobile navigation restriction and the broader step-12 responsive pass remain pending in `docs/PENDING.md`.
-- Remote GPU/Docker/AWS operational controls are not asserted to work without a running target. No AWS resources were created and nothing was pushed.
+- Notification centre, React diff/rollback, complete product workflows, mobile navigation restriction and the broader responsive pass remain pending in `docs/PENDING.md`. New backend stores and native diff/restore are described below.
+- Remote GPU/Docker/AWS operational controls are not asserted to work without a running target. No AWS resources were created. The user requested pushing the pause-point changes.
+
+## Phase 5 evidence and pause
+
+| Surface / feature | API and observed checks | Status |
+|---|---|---|
+| VS Code Chat | Shared typed client; project/model/profile selection, multiline draft, explicit start confirmation, task queue and SSE result | Exercised in real isolated development host |
+| Task continuation | New tracked task attempt using the same strict session | Exercised; backend ownership/cancellation/retry tests pass |
+| Changes | Same approval ID; read-only native before/proposed diff, approve once, scoped verified checkpoint restore | Exercised in scratch workspace; unknown post-images cannot be restored |
+| Cross-surface approvals | Native approval appears in React History as `user:vscode`; React denial appears in native Chat as interrupted, with Continue guidance | Both directions observed, using test backend |
+| Context, prompts and profiles | Persistent APIs and backend tests; native controls implemented | Full interactive pass not completed before pause |
+| Native accessibility / light theme / offline recovery | Semantic labels and focus styles implemented | Full pass pending; do not reuse Phase 4 accessibility scores as native evidence |
+
+Backend **111 tests** and shared client **6 tests** passed. Final dashboard build, extension compilation and 0.3.0 packaging passed; the final VSIX measured **25.24 KB**. Native testing used `scripts/serve-vscode-test.py`, `scripts/check-vscode.cjs` and `scripts/vscode-cdp.cjs`, with no paid inference. The CDP helper reaches Electron's nested webview because agent-browser's frame command did not reach that frame; agent-browser handled native snapshots and screenshots.
+
+Native dark screenshots inspected: initial cockpit and native diff; cross-surface outcome was also captured. Local files are under `.screens/phase5-*.png` and are not committed. The complete list of unfinished work and known command/offline-state gaps is in `docs/PENDING.md`.

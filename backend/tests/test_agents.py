@@ -32,8 +32,9 @@ class ToolResult:
 
 
 class CreateFile:
-    def __init__(self):
-        self.file_path, self.file_name, self.content = "E:/x/hello.txt", "hello.txt", "hi"
+    def __init__(self, cwd):
+        self.file_path, self.file_name, self.content = str(Path(cwd) / "hello.txt"), "hello.txt", "hi"
+        self.tool_use = type("ToolUse", (), {"id": "t1"})()
 
 
 class Option:
@@ -41,9 +42,9 @@ class Option:
 
 
 class FakePermission:
-    def __init__(self):
+    def __init__(self, cwd):
         self.options = [Option("proceed_once"), Option("proceed_always"), Option("cancel")]
-        self.actions = [CreateFile()]
+        self.actions = [CreateFile(cwd)]
 
     def respond(self, outcome, comment=None):
         return ("responded", getattr(outcome, "value", outcome), comment)
@@ -76,8 +77,10 @@ class FakeStream:
             self.result = Result("interrupted")
             return
         if "file" in self.prompt:
-            resp = await self.sess.on_permission(FakePermission())
+            resp = await self.sess.on_permission(FakePermission(self.sess.kw["cwd"]))
             self.sess.responses.append(resp)
+            if resp[1] == "proceed_once" and self.sess.kw.get("write_files"):
+                (Path(self.sess.kw["cwd"]) / "hello.txt").write_text("hi", encoding="utf-8")
             yield ToolResult(resp[1] == "proceed_once")
             if resp[1] == "cancel":  # real Droid ends the turn when a tool call is cancelled
                 self.result = Result("interrupted")

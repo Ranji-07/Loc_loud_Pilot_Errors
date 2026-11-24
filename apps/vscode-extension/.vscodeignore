@@ -2,3 +2,5 @@ src/**
 node_modules/**
 tsconfig.json
 *.vsix
+out/extension.js
+out/droid.js
