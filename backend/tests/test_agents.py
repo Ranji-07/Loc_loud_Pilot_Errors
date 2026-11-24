@@ -240,3 +240,12 @@ def test_restart_marks_active_runs_interrupted(settings: Settings):
     with TestClient(create_app(settings)) as c:
         assert c.get(f"/api/v1/agents/runs/{run['id']}").json()["status"] == "interrupted"
         assert c.get(f"/api/v1/approvals/{ap['id']}").json()["status"] == "expired"
+
+def test_model_calls_report_credits_and_window(agent_client):
+    run = agent_client.post("/api/v1/agents/runs", json={"prompt": "say hi"}, headers=HEADERS).json()
+    wait_status(agent_client, run["id"], {"succeeded"})
+    data = agent_client.get("/api/v1/usage/model-calls", params={"since": "2000-01-01T00:00:00Z"}).json()
+    assert data["totals"]["cloud"] == {"calls": 1, "cost_usd": 0.0, "credits": 42.0}
+    assert data["by_model"][0]["location"] == "cloud"
+    future = agent_client.get("/api/v1/usage/model-calls", params={"since": "2999-01-01"}).json()
+    assert future["by_model"] == [] and future["totals"]["cloud"]["calls"] == 0

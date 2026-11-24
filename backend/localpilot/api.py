@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -165,13 +166,24 @@ async def usage_summary(snapshot_id: int, req: Request) -> dict[str, Any]:
 
 
 @router.get("/usage/model-calls")
-def model_calls(req: Request) -> dict[str, Any]:
+def model_calls(req: Request, since: datetime | None = None) -> dict[str, Any]:
+    """Totals per model; `since` (ISO date or datetime, UTC) limits the window, e.g. the start of the month."""
+    q = select(ModelCall.model, ModelCall.provider, func.count(), func.sum(ModelCall.prompt_tokens),
+               func.sum(ModelCall.completion_tokens), func.sum(ModelCall.cost_usd), func.sum(ModelCall.credits))
+    if since is not None:
+        if since.tzinfo is not None:
+            since = since.astimezone(timezone.utc).replace(tzinfo=None)
+        q = q.where(ModelCall.at >= since)
     with req.app.state.db.session() as s:
-        rows = s.execute(select(ModelCall.model, ModelCall.provider, func.count(), func.sum(ModelCall.prompt_tokens),
-                                func.sum(ModelCall.completion_tokens), func.sum(ModelCall.cost_usd))
-                         .group_by(ModelCall.model, ModelCall.provider)).all()
-    return {"by_model": [{"model": m, "provider": p, "calls": n, "prompt_tokens": pt or 0,
-                          "completion_tokens": ct or 0, "cost_usd": round(c or 0, 6)} for m, p, n, pt, ct, c in rows]}
+        rows = s.execute(q.group_by(ModelCall.model, ModelCall.provider)).all()
+    by_model = [{"model": m, "provider": p, "location": "local" if p == "ollama" else "cloud", "calls": n,
+                 "prompt_tokens": pt or 0, "completion_tokens": ct or 0, "cost_usd": round(c or 0, 6),
+                 "credits": round(cr or 0, 2)} for m, p, n, pt, ct, c, cr in rows]
+    totals = {loc: {"calls": sum(r["calls"] for r in by_model if r["location"] == loc),
+                    "cost_usd": round(sum(r["cost_usd"] for r in by_model if r["location"] == loc), 6),
+                    "credits": round(sum(r["credits"] for r in by_model if r["location"] == loc), 2)}
+              for loc in ("local", "cloud")}
+    return {"since": since.isoformat() + "Z" if since else None, "by_model": by_model, "totals": totals}
 
 
 @router.get("/audit")

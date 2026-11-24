@@ -10,15 +10,15 @@ export default function Audit() {
   useEffect(() => { api.audit().then(setEvents).catch((e) => setError((e as Error).message)); }, []);
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Audit log</h1>
-      <p className="text-sm text-slate-400">Every executed, modified, blocked, stopped or skipped step is recorded here.</p>
+      <h1 className="text-xl font-semibold">History</h1>
+      <p className="text-sm text-muted">Every agent run, approval decision and setup step is recorded here (latest 200 events).</p>
       <ErrorBox error={error} />
       <div className="card overflow-auto">
         <table className="w-full text-xs">
-          <thead><tr className="text-left text-slate-500"><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead>
+          <thead><tr className="text-left text-muted"><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead>
           <tbody>
             {events.map((e) => (
-              <tr key={e.id} className="border-t border-slate-800 align-top">
+              <tr key={e.id} className="border-t border-border align-top">
                 <td className="py-1 pr-2 whitespace-nowrap">{new Date(e.at).toLocaleString()}</td>
                 <td className="pr-2">{e.actor}</td>
                 <td className="pr-2 whitespace-nowrap">{e.action}</td>

@@ -46,7 +46,7 @@ export default function SetupGuide() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Setup guide</h1>
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-muted">
         Each step shows the exact command first. Nothing runs until you press <b>Execute</b>. You can edit a command
         before running it, stop a running step, skip a step, or verify the result.
       </p>
@@ -61,9 +61,9 @@ export default function SetupGuide() {
         <div className="card flex items-center gap-4">
           <div className="flex-1">
             <div className="font-medium">{book.title}</div>
-            <div className="text-sm text-slate-400">{book.summary}</div>
+            <div className="text-sm text-muted">{book.summary}</div>
           </div>
-          {run && <div className="text-sm text-slate-300">{done} / {run.steps.length} done</div>}
+          {run && <div className="text-sm text-text">{done} / {run.steps.length} done</div>}
           {run && <Badge value={run.status === "completed" ? "succeeded" : "info"} label={run.status} />}
           <button className={run ? "btn-ghost" : "btn-primary"} onClick={start}>{run ? "Start over" : "Start guide"}</button>
         </div>
@@ -164,30 +164,30 @@ function StepCard({ index, runId, step, onChange, onRefresh }: {
   return (
     <li className="card space-y-3" data-step={step.id}>
       <div className="flex items-center gap-2">
-        <span className="text-slate-500 text-sm w-6">{index}.</span>
+        <span className="text-muted text-sm w-6">{index}.</span>
         <span className="font-medium">{step.title}</span>
         {step.optional && <Badge value="info" label="optional" />}
         <Badge value={policy.risk} label={`${policy.risk} risk`} />
         <span className="ml-auto"><Badge value={step.status} /></span>
-        {step.exit_code !== null && <span className="text-xs text-slate-500">exit {step.exit_code}</span>}
+        {step.exit_code !== null && <span className="text-xs text-muted">exit {step.exit_code}</span>}
       </div>
-      <p className="text-sm text-slate-300 whitespace-pre-line">{step.explain}</p>
+      <p className="text-sm text-text whitespace-pre-line">{step.explain}</p>
       <div>
-        <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-          <span>Command {edited && <span className="text-amber-400">(modified)</span>}</span>
+        <div className="flex items-center gap-2 text-xs text-muted mb-1">
+          <span>Command {edited && <span className="text-text">(modified)</span>}</span>
           {edited && <button className="underline" onClick={() => setCommand(step.command)}>reset</button>}
         </div>
         <textarea value={command} onChange={(e) => setCommand(e.target.value)} disabled={running} spellCheck={false}
                   rows={Math.min(6, command.split("\n").length + (command.length > 110 ? 1 : 0))}
-                  className="w-full rounded bg-slate-950 border border-slate-700 p-2 font-mono text-xs text-slate-100" />
+                  className="w-full rounded bg-bg border border-border-strong p-2 font-mono text-xs text-text" />
         {!policy.allowed && (
-          <div className="mt-1 text-xs text-rose-300">Policy blocks this command: {policy.reasons.join("; ")}</div>
+          <div className="mt-1 text-xs text-danger">Policy blocks this command: {policy.reasons.join("; ")}</div>
         )}
-        {step.expected && <div className="mt-1 text-xs text-slate-500">Expected: {step.expected}</div>}
-        {step.rollback && <div className="text-xs text-slate-500">Undo: <code>{step.rollback}</code></div>}
+        {step.expected && <div className="mt-1 text-xs text-muted">Expected: {step.expected}</div>}
+        {step.rollback && <div className="text-xs text-muted">Undo: <code>{step.rollback}</code></div>}
       </div>
       {high && !running && (
-        <label className="flex items-center gap-2 text-sm text-rose-200">
+        <label className="flex items-center gap-2 text-sm text-danger">
           <input type="checkbox" checked={confirmHigh} onChange={(e) => setConfirmHigh(e.target.checked)} />
           I understand this is high risk (it can create, change or bill cloud resources).
         </label>
@@ -208,13 +208,13 @@ function StepCard({ index, runId, step, onChange, onRefresh }: {
       </div>
       <ErrorBox error={error} />
       {verify && (
-        <div className={`rounded p-2 text-xs ${verify.passed ? "bg-emerald-950 text-emerald-200" : "bg-rose-950 text-rose-200"}`}>
+        <div className={`rounded p-2 text-xs ${verify.passed ? "bg-success-soft text-text" : "bg-danger-soft text-danger"}`}>
           Verification {verify.passed ? "passed" : "failed"}
           {verify.output && <pre className="mt-1 whitespace-pre-wrap">{verify.output}</pre>}
         </div>
       )}
       {showOutput && (
-        <pre className="max-h-72 overflow-auto rounded bg-black p-2 font-mono text-xs text-slate-200 whitespace-pre-wrap">
+        <pre className="max-h-72 overflow-auto rounded bg-black p-2 font-mono text-xs text-text whitespace-pre-wrap">
           {lines.length ? lines.join("\n") : running ? "Waiting for output…" : "(no output)"}
         </pre>
       )}

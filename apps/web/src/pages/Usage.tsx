@@ -48,13 +48,13 @@ export default function Usage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-semibold">Usage</h1>
+        <h1 className="text-xl font-semibold">Costs and usage</h1>
         <button className="btn-ghost ml-auto" onClick={load} disabled={loading}>{loading ? "Measuring…" : "Measure now"}</button>
         <button className="btn-primary" onClick={summarize} disabled={!snap || summarizing}>
           {summarizing ? "Asking small model…" : "Explain with small model"}
         </button>
       </div>
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-muted">
         All numbers come from scripts (psutil, Ollama API, AWS CLI). The small local model only rewrites them in plain words.
       </p>
       <ErrorBox error={error} />
@@ -70,10 +70,10 @@ export default function Usage() {
         <div className="card">
           <div className="flex items-center gap-2 font-medium">
             Small-model summary <Badge value="info" label={summary.source} />
-            {summary.model && <span className="text-xs text-slate-500">{summary.model}</span>}
-            {summary.duration_ms !== undefined && <span className="text-xs text-slate-500">{(summary.duration_ms / 1000).toFixed(1)} s</span>}
+            {summary.model && <span className="text-xs text-muted">{summary.model}</span>}
+            {summary.duration_ms !== undefined && <span className="text-xs text-muted">{(summary.duration_ms / 1000).toFixed(1)} s</span>}
           </div>
-          <p className="mt-2 text-sm whitespace-pre-line text-slate-200">{summary.text ?? summary.error}</p>
+          <p className="mt-2 text-sm whitespace-pre-line text-text">{summary.text ?? summary.error}</p>
         </div>
       )}
       {local && (
@@ -91,8 +91,8 @@ export default function Usage() {
       {snap?.aws && (
         <div className="card text-sm space-y-1">
           <div className="font-medium">AWS</div>
-          {snap.aws.reason && <div className="text-amber-300">{snap.aws.reason}</div>}
-          {(snap.aws.instances ?? []).length === 0 && !snap.aws.reason && <div className="text-slate-400">No LocalPilot instances. Nothing is billing.</div>}
+          {snap.aws.reason && <div className="text-text">{snap.aws.reason}</div>}
+          {(snap.aws.instances ?? []).length === 0 && !snap.aws.reason && <div className="text-muted">No LocalPilot instances. Nothing is billing.</div>}
           {(snap.aws.instances ?? []).map((i: any) => (
             <div key={i.id}>{i.id} {i.type} <Badge value={i.state === "running" ? "warn" : "info"} label={i.state} /> ${i.hourly_usd}/h</div>
           ))}
@@ -101,7 +101,7 @@ export default function Usage() {
       {snap?.remote && (
         <div className="card text-sm">
           <div className="font-medium">Remote GPU target</div>
-          <div className="text-slate-400">{snap.remote.configured ? (snap.remote.reachable ? "Reachable over SSH" : snap.remote.reason ?? "Not reachable") : "Not configured yet"}</div>
+          <div className="text-muted">{snap.remote.configured ? (snap.remote.reachable ? "Reachable over SSH" : snap.remote.reason ?? "Not reachable") : "Not configured yet"}</div>
         </div>
       )}
       <Table title="Model calls logged by LocalPilot" rows={calls} cols={["model", "provider", "calls", "prompt_tokens", "completion_tokens", "cost_usd"]} />
@@ -112,9 +112,9 @@ export default function Usage() {
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="card">
-      <div className="text-xs text-slate-500">{label}</div>
+      <div className="text-xs text-muted">{label}</div>
       <div className="text-2xl font-semibold">{value}</div>
-      {sub && <div className="text-xs text-slate-500">{sub}</div>}
+      {sub && <div className="text-xs text-muted">{sub}</div>}
     </div>
   );
 }
@@ -123,10 +123,10 @@ function Table({ title, rows, cols }: { title: string; rows: Record<string, any>
   return (
     <div className="card">
       <div className="font-medium mb-2">{title}</div>
-      {rows.length === 0 ? <div className="text-sm text-slate-500">None yet.</div> : (
+      {rows.length === 0 ? <div className="text-sm text-muted">None yet.</div> : (
         <table className="w-full text-sm">
-          <thead><tr>{cols.map((c) => <th key={c} className="text-left text-xs text-slate-500 font-normal pb-1">{c.replaceAll("_", " ")}</th>)}</tr></thead>
-          <tbody>{rows.map((r, i) => <tr key={i} className="border-t border-slate-800">{cols.map((c) => <td key={c} className="py-1">{String(r[c] ?? "")}</td>)}</tr>)}</tbody>
+          <thead><tr>{cols.map((c) => <th key={c} className="text-left text-xs text-muted font-normal pb-1">{c.replaceAll("_", " ")}</th>)}</tr></thead>
+          <tbody>{rows.map((r, i) => <tr key={i} className="border-t border-border">{cols.map((c) => <td key={c} className="py-1">{String(r[c] ?? "")}</td>)}</tr>)}</tbody>
         </table>
       )}
     </div>

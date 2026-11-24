@@ -1,4 +1,4 @@
-export type Check = { name: string; status: string; detail: string; hint?: string | null };
+export type Check = { name: string; status: string; detail: string; fix?: string | null; latency_ms?: number };
 export type Health = { version: string; status: string; checks: Check[] };
 export type Policy = { allowed: boolean; risk: string; reasons: string[] };
 export type StepView = {
@@ -10,6 +10,12 @@ export type StepView = {
 export type Run = { id: string; runbook_id: string; title: string; status: string; created_at: string; steps: StepView[] };
 export type RunbookSummary = { id: string; title: string; summary: string; category: string; steps: number };
 export type Alert = { level: string; text: string };
+type CallTotals = { calls: number; cost_usd: number; credits: number };
+export type ModelCalls = {
+  since: string | null; totals: { local: CallTotals; cloud: CallTotals };
+  by_model: { model: string; provider: string; location: string; calls: number; prompt_tokens: number;
+    completion_tokens: number; cost_usd: number; credits: number }[];
+};
 
 export class ApiError extends Error {
   constructor(message: string, public status: number, public detail?: Policy | Record<string, unknown>) {
@@ -26,8 +32,19 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
   return data as T;
 }
 
+/** Health checks take seconds (they call CLIs), so concurrent callers share one request and a short cache. */
+let healthCache: { at: number; p: Promise<Health> } | null = null;
+function sharedHealth(force = false): Promise<Health> {
+  if (force || !healthCache || Date.now() - healthCache.at > 10_000) {
+    const p = req<Health>("GET", "/health");
+    healthCache = { at: Date.now(), p };
+    p.catch(() => { healthCache = null; });
+  }
+  return healthCache.p;
+}
+
 export const api = {
-  health: () => req<Health>("GET", "/health"),
+  health: sharedHealth,
   runbooks: () => req<RunbookSummary[]>("GET", "/runbooks"),
   runbook: (id: string) => req<{ runs: Run[] }>("GET", `/runbooks/${id}`),
   startRun: (id: string) => req<Run>("POST", `/runbooks/${id}/runs`),
@@ -42,12 +59,12 @@ export const api = {
     req<{ passed: boolean; output: string }>("POST", `/runs/${run}/steps/${step}/check`, { approved: true }),
   output: (run: string, step: string) =>
     req<{ lines: string[]; next: number; done: boolean }>("GET", `/runs/${run}/steps/${step}/output`),
-  usage: () => req<Record<string, any> & { id: number; alerts: Alert[] }>("GET", "/usage"),
+  usage: (includeRemote = true) =>
+    req<Record<string, any> & { id: number; alerts: Alert[] }>("GET", `/usage${includeRemote ? "" : "?include_remote=false"}`),
   summary: (id: number) => req<{ source: string; model: string | null; text: string | null; error?: string;
     prompt_tokens?: number; completion_tokens?: number; duration_ms?: number }>("POST", `/usage/${id}/summary`),
-  modelCalls: () => req<{ by_model: { model: string; provider: string; calls: number; prompt_tokens: number;
-    completion_tokens: number; cost_usd: number }[] }>("GET", "/usage/model-calls"),
-  audit: () => req<{ id: number; at: string; actor: string; action: string; target: string; detail: any }[]>("GET", "/audit?limit=200"),
+  modelCalls: (since?: string) => req<ModelCalls>("GET", `/usage/model-calls${since ? `?since=${encodeURIComponent(since)}` : ""}`),
+  audit: (limit = 200) => req<{ id: number; at: string; actor: string; action: string; target: string; detail: any }[]>("GET", `/audit?limit=${limit}`),
 };
 
 export type AgentModel = { id: string; name: string; location: "local" | "cloud"; custom: boolean };
