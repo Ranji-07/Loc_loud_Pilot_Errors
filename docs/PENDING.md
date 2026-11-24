@@ -38,10 +38,10 @@ Phase 4 (UI) work that depends on an item here shows that screen as "unavailable
 | Project memory / knowledge (layered, with source hashes and commit references) | Not started | |
 | Context engine | Not started | |
 | Task management | Not started | No tasks table or API |
-| Prompt management (templates, versions, history) | Not started | Needed by Prompt Studio |
+| Prompt management (templates, versions, history) | Partial | Basic Prompt Studio runs through Droid and reuses recorded run prompts. Templates, saved prompts, versions and comparison still need storage |
 | Model router (cache, then rules, then local, remote, cloud) | Not started | The usage summarizer has its own small fixed route |
-| Model registry (context size, VRAM, capabilities, pricing, assignment) | Partial | `/agents/models` lists Droid models (local or cloud); `config/pricing.yaml` has AWS prices |
-| Budgets (per task, project, month), cost estimate before expensive actions | Not started | Credits and tokens are recorded per Droid run; `/usage/model-calls` does not return credits yet |
+| Model registry (context size, VRAM, capabilities, pricing, assignment) | Partial | `/models` reads local/remote Ollama metadata, loaded memory, configured assignments and Droid choices. Cloud limits/prices and automatic routing remain unknown; `config/pricing.yaml` has AWS estimates |
+| Budgets (per task, project, month), cost estimate before expensive actions | Partial | Credits, tokens, monthly and daily totals are recorded. Prompt Studio shows a rough prompt token count and a historical credit average, not a cost quote. Budget enforcement, dollar billing and project attribution are not built |
 | Response cache / duplicate request detection | Partial | Summarizer cache only |
 
 ## Phase 3: agent operations
@@ -53,7 +53,16 @@ Phase 4 (UI) work that depends on an item here shows that screen as "unavailable
 | Approval workflow | Partial | Droid permission requests and runbook steps are approved. There is no diff view, rollback or "request explanation", and runbook approvals are not in the `approvals` table |
 | Decisions (architecture, model, dependency, budget) | Not started | No decisions table |
 | Git checkpoints, worktrees, rollback before agent writes | Not started | Droid writes go straight into the folder after approval |
-| Agent history | Partial | Runs, events and usage are stored; no retry or reassign |
+| Agent history | Partial | Runs, events and usage are stored. Web Retry creates a fresh run with the same inputs; Continue resumes the session. Reassignment needs the agent/task registry |
 | Clarifying questions from Droid | Not started | They are cancelled with a note |
 | Local agent model that is practical | Blocked | qwen2.5-coder 7B on the CPU took about 25 minutes per turn and wrote tool calls as text. Needs a GPU (AWS) and a model with reliable tool calling |
 | Shared typed API client for web and VS Code (`packages/shared-types`, `api-client`) | Not started | Both clients have their own hand-written types today |
+
+## Phase 4: approved dashboard scope
+
+- Steps 5–10 use existing APIs and small read-only additions. Projects, Tasks, Knowledge and engineering Decisions remain unavailable by your choice.
+- Backend Settings is read-only by your choice. Only browser Appearance can be saved.
+- History has cursor paging, filters and redacted CSV/JSON exports (newest 10,000 matches). It covers recorded audit events, not a complete conversation/Git/project timeline.
+- Diff comparison, rollback, explanation requests, notifications and a shared VS Code client remain pending. Raw proposed file content/patches are shown when Droid supplies them.
+- Mobile currently supports responsive views of all pages; limiting mobile navigation to the four daily-use pages is still pending.
+- Stop point C comes before any Phase 5 VS Code changes. AWS resources remain uncreated; no pushes are authorized.

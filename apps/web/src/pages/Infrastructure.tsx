@@ -4,6 +4,26 @@ import { api, type Health } from "../api";
 import { go } from "../nav";
 import { ErrorState, LoadingState, PageHeader, StatusBadge, Tabs } from "../ui";
 import SetupGuide from "./SetupGuide";
+import Usage from "./Usage";
+
+function Logs() {
+  const [data, setData] = useState<Awaited<ReturnType<typeof api.logs>> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(() => api.logs().then((d) => { setData(d); setError(null); }).catch((e) => setError((e as Error).message)), []);
+  useEffect(() => { void load(); }, [load]);
+  return <div className="space-y-3">
+    <button className="btn-ghost" onClick={load}>Refresh logs</button>
+    <ErrorState error={error} onRetry={load} />
+    {!data && !error && <LoadingState />}
+    {data && <div className="card"><p className="mb-3 break-all text-xs text-muted">Latest 200 backend log lines. {data.path}</p>
+      {data.lines.map((l, i) => <details key={i} className="border-t border-border py-2 text-xs">
+        <summary className="cursor-pointer break-all">{l.ts ? new Date(l.ts).toLocaleString() : ""} · {l.level} · {l.msg}</summary>
+        <pre className="mt-2 whitespace-pre-wrap break-all">{JSON.stringify(l.extra, null, 2)}</pre>
+      </details>)}
+      {!data.lines.length && <p className="text-sm text-muted">No log lines.</p>}
+    </div>}
+  </div>;
+}
 
 function HealthChecks() {
   const [health, setHealth] = useState<Health | null>(null);
@@ -44,13 +64,16 @@ function HealthChecks() {
 }
 
 export default function Infrastructure({ rest }: { rest: string[] }) {
-  const tab = rest[0] === "setup" ? "setup" : "health";
+  const tab = rest[0] === "setup" || rest[0] === "resources" || rest[0] === "logs" ? rest[0] : "health";
   return (
     <div>
       <PageHeader title="Infrastructure" description="Health of this machine and its services, and guided setup with approval for every step." />
-      <Tabs label="Infrastructure sections" value={tab} onChange={(t) => go(t === "setup" ? "setup" : "infrastructure")}
-            tabs={[{ id: "health", label: "Health" }, { id: "setup", label: "Setup guides" }]} />
-      {tab === "health" ? <HealthChecks /> : <SetupGuide />}
+      <Tabs label="Infrastructure sections" value={tab} onChange={(t) => go(t === "setup" ? "setup" : `infrastructure/${t}`)}
+            tabs={[{ id: "health", label: "Health" }, { id: "resources", label: "Resources" }, { id: "logs", label: "Logs" }, { id: "setup", label: "Setup guides" }]} />
+      {tab === "health" && <HealthChecks />}
+      {tab === "resources" && <Usage />}
+      {tab === "logs" && <Logs />}
+      {tab === "setup" && <SetupGuide />}
     </div>
   );
 }

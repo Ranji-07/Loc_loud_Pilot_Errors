@@ -1,25 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, Bot, Cpu, Plus, Server, Wallet } from "lucide-react";
-import { agents, api, type AgentModel, type AgentRun, type Approval, type Health, type ModelCalls } from "../api";
+import { agents, api, type AgentModel, type AgentRun, type Approval, type AuditRow, type Health, type ModelCalls } from "../api";
+import { ago, monthStart } from "../fmt";
 import { go } from "../nav";
 import { Card, EmptyState, ErrorState, LoadingState, PageHeader, StatusBadge } from "../ui";
 
 const ACTIVE = ["starting", "running", "waiting_approval"];
 type Usage = Awaited<ReturnType<typeof api.usage>>;
-type AuditRow = Awaited<ReturnType<typeof api.audit>>[number];
 
-function monthStart() {
-  const d = new Date();
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
-}
-
-function ago(iso: string) {
-  const s = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-  return new Date(iso).toLocaleDateString();
-}
 
 function usePoll<T>(fn: () => Promise<T>, ms: number | null) {
   const [data, setData] = useState<T | null>(null);
@@ -106,7 +94,7 @@ export default function Overview() {
                 {runs.data.slice(0, 5).map((r) => (
                   <li key={r.id} className="flex items-center gap-2 py-1.5 text-sm">
                     <StatusBadge value={r.status} />
-                    <a className="min-w-0 flex-1 truncate hover:underline" href="#/agents">{r.title}</a>
+                    <a className="min-w-0 flex-1 truncate hover:underline" href={`#/agents/runs/${r.id}`}>{r.title}</a>
                     <span className="shrink-0 text-xs text-muted">{r.model_location} · {ago(r.created_at)}</span>
                   </li>
                 ))}
@@ -130,7 +118,7 @@ export default function Overview() {
             <Row label="This machine">{local ? `CPU ${local.cpu_percent}% · RAM ${local.ram_used_percent}% used` : usage.error ? "Unavailable" : "Measuring…"}</Row>
             <Row label="Local GPU">{check("local_gpu")?.detail ?? "…"}</Row>
             <Row label="Remote GPU">{check("remote_ollama") ? <><StatusBadge value={check("remote_ollama")!.status} /> <span className="text-muted">{check("remote_ollama")!.detail}</span></> : "…"}</Row>
-            <Row label="AWS">{!usage.data ? (usage.error ? "Unavailable" : "Checking…") : !aws?.available ? (aws?.reason ?? "Not checked") : awsRunning.length ? `${awsRunning.length} instance(s) running` : "No LocalPilot instances running. Nothing is billing."}</Row>
+            <Row label="AWS">{!usage.data ? (usage.error ? "Unavailable" : "Checking…") : !aws?.available ? (aws?.reason ?? "Not checked") : awsRunning.length ? `${awsRunning.length} instance(s) running` : "No LocalPilot instances running in this region. Other charges are not checked."}</Row>
           </div>
         </Card>
 
@@ -139,7 +127,7 @@ export default function Overview() {
             <div className="divide-y divide-border">
               <Row label="Factory cloud">{calls.data.totals.cloud.credits.toLocaleString()} credits · {calls.data.totals.cloud.calls} run(s)</Row>
               <Row label="Local models">{calls.data.totals.local.calls} call(s) · no charge</Row>
-              <Row label="AWS GPU">{awsRunning.length ? `≈ $${awsCost.toFixed(2)} since the running instance(s) started (estimate from config/pricing.yaml)` : "$0 now (no running instances)"}</Row>
+              <Row label="AWS GPU">{!usage.data || !aws?.available ? "Estimate unavailable until the AWS check succeeds" : awsRunning.length ? `≈ $${awsCost.toFixed(2)} since the running instance(s) started (estimate from config/pricing.yaml)` : "No running instance compute estimated. Storage and other charges are not included."}</Row>
             </div>
           )}
         </Card>

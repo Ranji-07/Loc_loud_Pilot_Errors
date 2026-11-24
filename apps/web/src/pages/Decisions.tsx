@@ -7,6 +7,7 @@ import { ApprovalCard } from "./Agent";
 function Approvals() {
   const [items, setItems] = useState<Approval[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const load = useCallback(() => {
     agents.approvals().then((a) => { setItems(a); setError(null); }).catch((e) => setError((e as Error).message));
   }, []);
@@ -14,7 +15,7 @@ function Approvals() {
   if (error) return <ErrorState error={error} onRetry={load} />;
   if (!items) return <LoadingState />;
   const pending = items.filter((a) => a.status === "pending");
-  const done = items.filter((a) => a.status !== "pending");
+  const done = items.filter((a) => a.status !== "pending" && `${a.title} ${a.status} ${a.comment ?? ""}`.toLowerCase().includes(search.toLowerCase()));
   return (
     <div className="space-y-4">
       <section aria-label="Pending approvals" className="space-y-3">
@@ -22,13 +23,17 @@ function Approvals() {
         {pending.length === 0 && <div className="card"><EmptyState title="Nothing is waiting for approval">Droid asks here before it changes a file or runs a command.</EmptyState></div>}
         {pending.map((a) => (
           <div key={a.id} className="space-y-1">
-            <button className="text-xs text-muted underline" onClick={() => go("agents")}>From Droid run {a.run_id?.slice(0, 8)}</button>
+            <a className="text-xs text-muted underline" href={`#/agents/runs/${a.run_id}`}>From Droid run {a.run_id?.slice(0, 8)}</a>
             <ApprovalCard a={a} onDone={load} />
           </div>
         ))}
       </section>
       <section aria-label="Approval history" className="card overflow-x-auto">
         <h2 className="mb-2 text-sm font-semibold">History</h2>
+        <label className="mb-3 block text-xs">Search recent approval history
+          <input className="field mt-1 w-full" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </label>
+        <p className="mb-2 text-xs text-muted">Latest 100 approvals. Full recorded outcomes are searchable and paginated in <a className="underline" href="#/history">History</a>.</p>
         {done.length === 0 ? <p className="text-sm text-muted">No decisions yet.</p> : (
           <table className="w-full text-sm">
             <thead><tr className="text-left text-xs text-muted"><th className="py-1 pr-2 font-medium">Requested</th><th className="pr-2 font-medium">Action</th><th className="pr-2 font-medium">Risk</th><th className="pr-2 font-medium">Outcome</th><th className="font-medium">By</th></tr></thead>

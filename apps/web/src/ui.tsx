@@ -92,9 +92,18 @@ export function Tabs<T extends string>({ tabs, value, onChange, label }: {
   tabs: { id: T; label: string; count?: number }[]; value: T; onChange: (id: T) => void; label: string;
 }) {
   return (
-    <div role="tablist" aria-label={label} className="mb-4 flex gap-1 border-b border-border">
+    <div role="tablist" aria-label={label} className="mb-4 flex flex-wrap gap-1 border-b border-border"
+      onKeyDown={(e) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+        e.preventDefault();
+        const index = tabs.findIndex((t) => t.id === value);
+        const next = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 :
+          (index + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+        onChange(tabs[next].id);
+        (e.currentTarget.children[next] as HTMLButtonElement).focus();
+      }}>
       {tabs.map((t) => (
-        <button key={t.id} role="tab" aria-selected={value === t.id} onClick={() => onChange(t.id)}
+        <button key={t.id} role="tab" tabIndex={value === t.id ? 0 : -1} aria-selected={value === t.id} onClick={() => onChange(t.id)}
                 className={`-mb-px border-b-2 px-3 py-2 text-sm ${value === t.id ? "border-accent font-medium text-text" : "border-transparent text-muted hover:text-text"}`}>
           {t.label}{t.count !== undefined && <span className="ml-1.5 rounded-ui bg-surface-2 px-1.5 text-xs">{t.count}</span>}
         </button>

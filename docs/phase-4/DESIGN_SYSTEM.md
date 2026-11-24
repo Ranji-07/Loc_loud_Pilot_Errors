@@ -46,9 +46,9 @@ Rule that follows from this: **status text is never drawn in the status colour.*
 
 ```
 WORKSPACE      Overview · Projects* · Agents · Tasks*
-INTELLIGENCE   Prompt Studio* · Decisions (Approvals | Decisions*) · Knowledge*
-OPERATIONS     History · Models* · Infrastructure (Health | Setup guides) · Costs
-SYSTEM         Settings*
+INTELLIGENCE   Prompt Studio · Decisions (Approvals | Decisions*) · Knowledge*
+OPERATIONS     History · Models · Infrastructure (Health | Resources | Logs | Setup guides) · Costs
+SYSTEM         Settings (read-only backend, editable browser Appearance)
 ```
 
 `*` = no backend yet; the screen says what is missing (see docs/PENDING.md). Old links keep working: `#/agent`, `#/audit`, `#/usage`, `#/setup/<id>`. Ctrl+K opens the command palette (pages, new task, pending approvals, theme). Under 1024px the sidebar becomes a menu drawer.
@@ -62,5 +62,12 @@ SYSTEM         Settings*
 | PageHeader, Card, Tabs, StatusBadge | `ui.tsx` | — |
 | LoadingState, EmptyState, ErrorState (with Retry), Unavailable | `ui.tsx` | — |
 | ApprovalCard | `pages/Agent.tsx` | busy, error |
+| ModelSelect | `pages/Agent.tsx`, reused by Prompt Studio | local/cloud optgroups, location explanation |
+| Prompt editor and variables | `pages/PromptStudio.tsx` | missing-variable guard, run busy/error, recent prompts empty |
+| History timeline and filters | `pages/Audit.tsx` | loading/empty/error, 25-row cursor pages, exports |
+| Models, resource tables and Costs | respective pages | loading/empty/error, expandable metadata, explicit unknown values |
+| Settings search and Appearance | `pages/Settings.tsx` | loading/empty/error, persisted theme |
 
-Not built yet (needed by later screens): DataTable with paging, FilterBar, Drawer, Toast, NotificationCentre, DiffViewer, PromptEditor, ActivityTimeline, CostSummary chart.
+Pages are lazy-loaded. Concurrent identical GET requests share one promise; health also has a 10-second cache. Tabs support left/right arrows, Home/End and a single tab stop.
+
+Not built yet: reusable advanced DataTable, Toast, NotificationCentre, DiffViewer and cost charts. The present timeline uses server cursor paging and ordinary semantic lists/tables, without adding another dependency.

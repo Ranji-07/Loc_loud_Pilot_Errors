@@ -1,30 +1,27 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { ChevronDown, Menu, Monitor, Moon, Search, Sun, X } from "lucide-react";
 import { agents, api, type Health } from "./api";
 import { CommandPalette } from "./CommandPalette";
 import { NAV, parseHash } from "./nav";
 import { getThemeChoice, setThemeChoice, type ThemeChoice } from "./theme";
-import { Unavailable } from "./ui";
-import Overview from "./pages/Overview";
-import Agent from "./pages/Agent";
-import Decisions from "./pages/Decisions";
-import Audit from "./pages/Audit";
-import Infrastructure from "./pages/Infrastructure";
-import Usage from "./pages/Usage";
+import { LoadingState, Unavailable } from "./ui";
+const Overview = lazy(() => import("./pages/Overview"));
+const Agent = lazy(() => import("./pages/Agent"));
+const Decisions = lazy(() => import("./pages/Decisions"));
+const Audit = lazy(() => import("./pages/Audit"));
+const Infrastructure = lazy(() => import("./pages/Infrastructure"));
+const Costs = lazy(() => import("./pages/Costs"));
+const PromptStudio = lazy(() => import("./pages/PromptStudio"));
+const Models = lazy(() => import("./pages/Models"));
+const Settings = lazy(() => import("./pages/Settings"));
 
 const UNAVAILABLE: Record<string, { title: string; description: string; needs: string[]; phase: string }> = {
   projects: { title: "Projects", description: "Register repositories and keep their instructions, architecture and tasks together.",
               needs: ["Project registration and storage", "Repository import (Git)"], phase: "Phase 2" },
   tasks: { title: "Tasks", description: "Objectives, plans, progress and results for agent work.",
            needs: ["Task model and API (agent runs are on the Agents page today)"], phase: "Phase 2" },
-  prompts: { title: "Prompt Studio", description: "Write, version, test and compare prompts.",
-             needs: ["Prompt templates, versions and history", "Token and context estimates", "Model router"], phase: "Phase 2" },
   knowledge: { title: "Knowledge", description: "Architecture, decisions, documentation and codebase summaries with source hashes.",
                needs: ["Project memory with commit references", "Context engine"], phase: "Phase 2" },
-  models: { title: "Models", description: "Local, remote and cloud models, their limits and assignments.",
-            needs: ["Model registry with context size, VRAM and pricing", "Routing rules (Droid's models are listed on the Agents page today)"], phase: "Phase 2" },
-  settings: { title: "Settings", description: "Grouped, searchable configuration.",
-              needs: ["Settings API (settings come from LOCALPILOT_* environment variables and backend/.env today)"], phase: "Phase 4, step 10" },
 };
 
 function ThemeSwitch() {
@@ -151,13 +148,18 @@ export default function App() {
           <span className="font-semibold">LocalPilot</span>
         </div>
         <main id="main" tabIndex={-1} className="mx-auto max-w-6xl p-4 outline-none lg:p-6">
+          <Suspense fallback={<LoadingState />}>
           {page === "overview" && <Overview />}
-          {page === "agents" && <Agent />}
+          {page === "agents" && <Agent rest={rest} />}
           {page === "decisions" && <Decisions tab={rest[0] === "decisions" ? "decisions" : "approvals"} />}
           {page === "history" && <Audit />}
           {page === "infrastructure" && <Infrastructure rest={rest} />}
-          {page === "costs" && <Usage />}
+          {page === "costs" && <Costs />}
+          {page === "prompts" && <PromptStudio />}
+          {page === "models" && <Models />}
+          {page === "settings" && <Settings />}
           {UNAVAILABLE[page] && <Unavailable {...UNAVAILABLE[page]} />}
+          </Suspense>
         </main>
       </div>
       <CommandPalette open={palette} onClose={() => setPalette(false)} />

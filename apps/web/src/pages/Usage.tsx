@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type Alert } from "../api";
-import { Badge, ErrorBox } from "../ui";
+import { Badge, ErrorBox, LoadingState } from "../ui";
 
 type Snapshot = Awaited<ReturnType<typeof api.usage>>;
 type Summary = Awaited<ReturnType<typeof api.summary>>;
@@ -47,8 +47,8 @@ export default function Usage() {
   const local = snap?.local;
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">Costs and usage</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="text-lg font-semibold">Resource measurements</h2>
         <button className="btn-ghost ml-auto" onClick={load} disabled={loading}>{loading ? "Measuring…" : "Measure now"}</button>
         <button className="btn-primary" onClick={summarize} disabled={!snap || summarizing}>
           {summarizing ? "Asking small model…" : "Explain with small model"}
@@ -58,6 +58,7 @@ export default function Usage() {
         All numbers come from scripts (psutil, Ollama API, AWS CLI). The small local model only rewrites them in plain words.
       </p>
       <ErrorBox error={error} />
+      {!snap && loading && <LoadingState label="Measuring resources…" />}
       {snap && (
         <div className="card space-y-2">
           <div className="font-medium">Alerts</div>
@@ -92,7 +93,7 @@ export default function Usage() {
         <div className="card text-sm space-y-1">
           <div className="font-medium">AWS</div>
           {snap.aws.reason && <div className="text-text">{snap.aws.reason}</div>}
-          {(snap.aws.instances ?? []).length === 0 && !snap.aws.reason && <div className="text-muted">No LocalPilot instances. Nothing is billing.</div>}
+          {(snap.aws.instances ?? []).length === 0 && !snap.aws.reason && <div className="text-muted">No LocalPilot instances found in this region. Other resources and charges are not checked.</div>}
           {(snap.aws.instances ?? []).map((i: any) => (
             <div key={i.id}>{i.id} {i.type} <Badge value={i.state === "running" ? "warn" : "info"} label={i.state} /> ${i.hourly_usd}/h</div>
           ))}
@@ -124,10 +125,10 @@ function Table({ title, rows, cols }: { title: string; rows: Record<string, any>
     <div className="card">
       <div className="font-medium mb-2">{title}</div>
       {rows.length === 0 ? <div className="text-sm text-muted">None yet.</div> : (
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto"><table className="w-full text-sm">
           <thead><tr>{cols.map((c) => <th key={c} className="text-left text-xs text-muted font-normal pb-1">{c.replaceAll("_", " ")}</th>)}</tr></thead>
           <tbody>{rows.map((r, i) => <tr key={i} className="border-t border-border">{cols.map((c) => <td key={c} className="py-1">{String(r[c] ?? "")}</td>)}</tr>)}</tbody>
-        </table>
+        </table></div>
       )}
     </div>
   );

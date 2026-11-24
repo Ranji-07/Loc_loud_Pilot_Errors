@@ -14,18 +14,18 @@ export const NAV: NavGroup[] = [
     { id: "tasks", label: "Tasks", icon: ListChecks, available: false },
   ] },
   { id: "intelligence", label: "Intelligence", items: [
-    { id: "prompts", label: "Prompt Studio", icon: PenLine, available: false },
+    { id: "prompts", label: "Prompt Studio", icon: PenLine, available: true },
     { id: "decisions", label: "Decisions", icon: Scale, available: true, keywords: "approvals approve deny permission" },
     { id: "knowledge", label: "Knowledge", icon: BookOpen, available: false },
   ] },
   { id: "operations", label: "Operations", items: [
     { id: "history", label: "History", icon: History, available: true, keywords: "audit log timeline" },
-    { id: "models", label: "Models", icon: Cpu, available: false, keywords: "ollama" },
+    { id: "models", label: "Models", icon: Cpu, available: true, keywords: "ollama" },
     { id: "infrastructure", label: "Infrastructure", icon: Server, available: true, keywords: "setup guide health gpu usage aws" },
     { id: "costs", label: "Costs", icon: Wallet, available: true, keywords: "credits spend usage" },
   ] },
   { id: "system", label: "System", items: [
-    { id: "settings", label: "Settings", icon: Settings, available: false },
+    { id: "settings", label: "Settings", icon: Settings, available: true },
   ] },
 ];
 
@@ -39,6 +39,7 @@ export function parseHash(): { page: string; rest: string[] } {
   let page = parts[0] ?? "overview";
   page = ALIASES[page] ?? page;
   if (page === "setup") return { page: "infrastructure", rest: ["setup", ...parts.slice(1)] };
+  if (parts[0] === "usage") return { page: "infrastructure", rest: ["resources"] };
   if (!ALL_ITEMS.some((i) => i.id === page)) page = "overview";
   return { page, rest: parts.slice(1) };
 }
