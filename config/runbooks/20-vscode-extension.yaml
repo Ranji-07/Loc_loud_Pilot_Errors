@@ -1,0 +1,29 @@
+id: vscode-extension
+title: VS Code extension
+summary: Build and install the LocalPilot VS Code extension (status bar, setup steps, usage, dashboard links).
+category: setup
+order: 20
+steps:
+  - id: npm-install
+    title: Install build dependencies
+    explain: Installs TypeScript and the VS Code packaging tool into apps/vscode-extension/node_modules (downloads from npm).
+    cwd: apps/vscode-extension
+    command: npm install --no-audit --no-fund
+    risk: medium
+  - id: build-vsix
+    title: Build the extension package
+    explain: Compiles the extension and creates apps/vscode-extension/localpilot-0.1.0.vsix.
+    cwd: apps/vscode-extension
+    command: npm run package
+    check: Test-Path localpilot-0.1.0.vsix
+  - id: install-vsix
+    title: Install into VS Code
+    explain: Installs the extension for your user. Reload open VS Code windows afterwards (Ctrl+Shift+P, "Developer Reload Window").
+    command: code --install-extension apps/vscode-extension/localpilot-0.1.0.vsix --force
+    risk: medium
+    rollback: code --uninstall-extension localpilot.localpilot
+  - id: verify-install
+    title: Verify the extension is installed
+    explain: The LocalPilot icon appears in the activity bar and a status bar item shows the backend health.
+    command: code --list-extensions --show-versions | Select-String localpilot
+    expected: localpilot.localpilot@0.1.0

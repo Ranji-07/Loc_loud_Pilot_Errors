@@ -1,0 +1,75 @@
+id: aws-gpu-trial
+title: AWS GPU trial (remote models)
+summary: >-
+  Run models on an AWS machine while LocalPilot stays on this laptop. Start with a cheap CPU machine to test
+  the flow, then switch to a GPU once AWS raises your GPU quota. Stop or terminate when you are done.
+category: remote
+order: 30
+steps:
+  - id: check-account
+    title: Check the AWS account (read-only)
+    explain: Shows who you are signed in as, the region, GPU quotas, network and any LocalPilot machines. Creates nothing.
+    command: ./deploy/aws/check-account.ps1
+    expected: GPU quota above 0 is needed for GPU machines; t3.medium works with the standard quota.
+  - id: request-gpu-quota
+    title: Request GPU quota (optional, free)
+    explain: >-
+      New AWS accounts have 0 vCPUs for GPU (G) instances. This asks AWS for 4 vCPUs, enough for one g4dn.xlarge (T4 16 GB)
+      or g5.xlarge (A10G 24 GB). AWS reviews it in hours to days. Skip if you only want the CPU trial.
+    command: ./deploy/aws/request-gpu-quota.ps1 -Vcpus 4
+    risk: high
+    optional: true
+  - id: ensure-network
+    title: Create the default network (one time, free)
+    explain: Your region has no VPC. This creates the AWS default VPC (public subnets and an internet gateway). It has no cost.
+    command: ./deploy/aws/ensure-network.ps1
+    risk: high
+  - id: dry-run
+    title: Dry-run the launch (creates nothing)
+    explain: AWS checks that you are allowed to launch the machine and prints the estimated cost. Edit -InstanceType to plan a GPU launch.
+    command: ./deploy/aws/launch.ps1 -InstanceType t3.medium -DryRun
+  - id: launch
+    title: Launch the trial machine (starts billing)
+    explain: >-
+      Creates an SSH key (saved in your ~/.ssh), a firewall rule allowing SSH only from your current IP, and one machine with
+      Ollama listening on localhost only. It powers itself off after 30 idle minutes. t3.medium costs about $0.043/hour;
+      change to -InstanceType g4dn.xlarge (about $0.56/hour) once the GPU quota is approved.
+    command: ./deploy/aws/launch.ps1 -InstanceType t3.medium -IdleMinutes 30 -Model {small_model}
+    risk: high
+    rollback: ./deploy/aws/terminate.ps1
+  - id: wait-ready
+    title: Wait for setup to finish
+    explain: The machine installs Ollama and pulls the model (3 to 6 minutes on first boot).
+    command: ./deploy/aws/status.ps1 -Wait
+    timeout: 900
+  - id: open-tunnel
+    title: Open the SSH tunnel (keep running)
+    explain: >-
+      Connects http://127.0.0.1:11435 on this laptop to Ollama on the machine. Leave this step running while you work and press
+      Stop when done. Nothing on the machine is exposed to the internet.
+    command: ./deploy/aws/tunnel.ps1 -LocalPort 11435
+    long_running: true
+    check: Invoke-RestMethod http://127.0.0.1:11435/api/version
+  - id: remote-models
+    title: List models on the machine
+    explain: Shows installed and loaded models on the remote Ollama.
+    command: ./deploy/aws/remote.ps1 -Action models
+  - id: remote-test
+    title: Test the remote model through the tunnel
+    explain: Sends one prompt from this laptop through the tunnel. This is the same path LocalPilot agents will use.
+    command: "Invoke-RestMethod -Method Post -Uri http://127.0.0.1:11435/api/generate -ContentType 'application/json' -Body '{\"model\":\"{small_model}\",\"prompt\":\"Reply with one word: ready\",\"stream\":false}' | Select-Object response, eval_count, total_duration"
+    expected: response ready, eval_count a small number
+  - id: remote-usage
+    title: Check remote usage and cost
+    explain: GPU/CPU, RAM, disk, idle minutes and cost so far. The Usage page shows the same data with alerts.
+    command: ./deploy/aws/remote.ps1 -Action status; ./deploy/aws/remote.ps1 -Action gpu; ./deploy/aws/status.ps1
+  - id: stop
+    title: Stop the machine (ends compute billing)
+    explain: Stops the machine. The disk and downloaded models stay, billed at about $0.08 per GB-month. Start it again with deploy/aws/start.ps1.
+    command: ./deploy/aws/stop.ps1
+    risk: medium
+  - id: terminate
+    title: Terminate and clean up (ends all billing)
+    explain: Deletes the machine, its disk and the firewall rule. Add -DeleteKey to also delete the SSH key pair.
+    command: ./deploy/aws/terminate.ps1
+    risk: high

@@ -1,0 +1,26 @@
+id: litellm-gateway
+title: LiteLLM model gateway (optional)
+summary: >-
+  Install and run the LiteLLM proxy so LocalPilot can route between the local helper model and remote models behind
+  one OpenAI-compatible endpoint with spend logs. Installs into E:\LocalPilot\tools\litellm (about 300 MB).
+category: models
+order: 40
+steps:
+  - id: install
+    title: Install LiteLLM into its own environment
+    explain: Creates E:\LocalPilot\tools\litellm and installs the LiteLLM proxy there (downloads from PyPI). Keeps it separate from the LocalPilot backend.
+    command: ./deploy/litellm/install.ps1
+    risk: medium
+    timeout: 1200
+  - id: start
+    title: Start the gateway (keep running)
+    explain: >-
+      Serves http://127.0.0.1:4000 with two routes from deploy/litellm/config.yaml: local-small (laptop Ollama) and
+      remote-small (remote Ollama through the SSH tunnel on port 11435). Press Stop to shut it down.
+    command: ./deploy/litellm/start.ps1
+    long_running: true
+    check: Invoke-RestMethod http://127.0.0.1:4000/health/liveliness
+  - id: test-local-route
+    title: Test the local route
+    explain: Sends one chat request through the gateway to the laptop model.
+    command: "Invoke-RestMethod -Method Post -Uri http://127.0.0.1:4000/v1/chat/completions -ContentType 'application/json' -Body '{\"model\":\"local-small\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with one word: ready\"}]}' | Select-Object -ExpandProperty choices | Select-Object -ExpandProperty message"
