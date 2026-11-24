@@ -77,9 +77,20 @@ def serialize_action(action: Any) -> dict[str, Any]:
         v = getattr(action, name, None)
         if v is not None:
             out[name] = _clip(str(v))
+            if len(str(v)) > MAX_TEXT:
+                out["preview_truncated"] = True
     files = getattr(action, "files", None)
     if files:
-        out["files"] = [{"file_path": getattr(f, "file_path", ""), "operation": getattr(f, "operation", "")} for f in files]
+        out["files"] = []
+        for f in files:
+            data = {"file_path": getattr(f, "file_path", ""), "operation": getattr(f, "operation", "")}
+            for name in ("old_content", "new_content", "move_to"):
+                v = getattr(f, name, None)
+                if v is not None:
+                    data[name] = _clip(str(v))
+                    if len(str(v)) > MAX_TEXT:
+                        data["preview_truncated"] = True
+            out["files"].append(data)
     return out
 
 
@@ -115,6 +126,8 @@ class DroidManager:
         self._models_loader = models_loader or self._sdk_models
         self._live: dict[str, LiveRun] = {}
         self._models: tuple[float, list[dict]] | None = None
+        from ..checkpoints import Checkpoints
+        self.checkpoints = Checkpoints(db, self.resolve_cwd)
 
     # ---- environment -------------------------------------------------------
     @property
@@ -193,7 +206,7 @@ class DroidManager:
 
     # ---- runs ----------------------------------------------------------------
     async def start(self, prompt: str, model: str | None, autonomy: str = "off", cwd: str | None = None,
-                    continue_run_id: str | None = None) -> dict:
+                    continue_run_id: str | None = None, expected_location: str | None = None) -> dict:
         prompt = prompt.strip()
         if not prompt:
             raise AgentError("Prompt is empty")
@@ -216,6 +229,8 @@ class DroidManager:
             folder = self.resolve_cwd(cwd)
         model = model or self.settings.droid_default_model
         location = await self._location(model)
+        if expected_location is not None and location != expected_location:
+            raise AgentError("Model location changed since consent; review the task again", 409)
 
         run_id = str(uuid.uuid4())
         with self.db.session() as s:
@@ -298,6 +313,7 @@ class DroidManager:
                                     cost_usd=0.0, credits=float(usage.get("factory_credits", 0) or 0),
                                     output=_clip(text, 2000)))
             self._event(live, "finished", {"status": status, "error": error})
+            self.checkpoints.capture(live.run_id, finished=True)
             audit.record(self.db, f"agent.{status}", live.run_id, actor="system", error=error,
                          credits=usage.get("factory_credits"))
             live.state = status
@@ -317,6 +333,8 @@ class DroidManager:
         elif t == "ToolCall":
             self._event(live, "tool_call", {"tool": ev.name, "id": ev.tool_use_id, "input": _clip(dict(ev.input) if hasattr(ev.input, "keys") else ev.input, 4000)})
         elif t == "ToolResult":
+            if not ev.is_error:
+                self.checkpoints.capture(live.run_id, tool_use_id=ev.tool_use_id)
             self._event(live, "tool_result", {"tool": ev.tool_name, "id": ev.tool_use_id, "is_error": bool(ev.is_error),
                                               "content": _clip(ev.content, 4000)})
         elif t == "ErrorEvent":
@@ -338,9 +356,16 @@ class DroidManager:
         actions = [serialize_action(a) for a in req.actions]
         kind, title, risk = describe(actions)
         approval_id = str(uuid.uuid4())
+        details = {"actions": actions}
+        if any(type(a).__name__ in ("CreateFile", "EditAction", "ApplyPatchAction") for a in req.actions):
+            try:
+                details["checkpoint_id"] = self.checkpoints.prepare(live.run_id, approval_id,
+                                                                   self.get_run(live.run_id)["cwd"], req.actions)
+            except (AgentError, OSError) as exc:
+                details["checkpoint_error"] = redact(str(exc))
         with self.db.session() as s:
             s.add(Approval(id=approval_id, source="droid", run_id=live.run_id, kind=kind, title=title, risk=risk,
-                           details={"actions": actions}, options=offered, status="pending"))
+                           details=details, options=offered, status="pending"))
         fut: asyncio.Future = asyncio.get_running_loop().create_future()
         live.pending[approval_id] = fut
         self._update(live.run_id, status="waiting_approval")
@@ -377,12 +402,18 @@ class DroidManager:
             if a.status != "pending":
                 raise AgentError(f"Approval is already {a.status}", 409)
             run_id = a.run_id
+            details = a.details
         live = self._live.get(run_id or "")
         fut = live.pending.get(approval_id) if live else None
         if not fut or fut.done():
             self._close_approval(approval_id, "expired", "system", "The agent run is no longer waiting")
             raise AgentError("The agent run is no longer waiting for this approval", 409)
         status = "approved" if decision == "approve" else "denied"
+        if decision == "approve":
+            if details.get("checkpoint_error"):
+                raise AgentError(details["checkpoint_error"], 409)
+            if checkpoint_id := details.get("checkpoint_id"):
+                self.checkpoints.validate(checkpoint_id)
         self._close_approval(approval_id, status, actor, comment)
         audit.record(self.db, f"approval.{status}", approval_id, actor=actor, run=run_id, comment=comment)
         # Futures are not thread-safe and sync callers may run in a worker thread.

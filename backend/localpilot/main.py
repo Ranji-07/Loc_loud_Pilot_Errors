@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
@@ -18,6 +19,8 @@ from .logging_setup import configure_logging
 from .policy import CommandPolicy
 from .runbooks.engine import RunbookEngine, RunbookError
 from .runbooks.schema import load_runbooks
+from .workspace import Workspace
+from .workspace_routes import router as workspace_router
 
 log = logging.getLogger("localpilot")
 
@@ -39,10 +42,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         droid = DroidManager(settings, db)
         interrupted = droid.recover()
         app.state.settings, app.state.db, app.state.engine, app.state.droid = settings, db, engine, droid
+        workspace = Workspace(db, lambda: app.state.droid)
+        workspace.recover()
+        app.state.workspace = workspace
+        workspace.worker = asyncio.create_task(workspace.run_queue())
         audit.record(db, "server.started", f"{settings.host}:{settings.port}", actor="system",
                      version=__version__, runbooks=len(books), recovered_steps=recovered, interrupted_agent_runs=interrupted)
         log.info("LocalPilot started", extra={"port": settings.port, "data_dir": str(settings.data_dir)})
         yield
+        await workspace.shutdown()
         await droid.shutdown()
         engine.shutdown()
         audit.record(db, "server.stopped", f"{settings.host}:{settings.port}", actor="system")
@@ -83,6 +91,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(router)
     app.include_router(agents_router)
+    app.include_router(workspace_router)
 
     if settings.web_dist and (settings.web_dist / "index.html").exists():
         app.mount("/", StaticFiles(directory=settings.web_dist, html=True), name="web")

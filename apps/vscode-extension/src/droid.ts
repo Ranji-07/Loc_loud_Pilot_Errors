@@ -1,13 +1,6 @@
 import * as vscode from "vscode";
-
-type Approval = {
-  id: string; run_id: string | null; kind: string; title: string; risk: string; status: string;
-  details: { actions?: Record<string, any>[] }; created_at: string;
-};
-type AgentRun = { id: string; title: string; status: string; model: string; model_location: string; error: string | null;
-  result_text: string | null; usage: Record<string, number>; session_id: string | null };
-type AgentEvent = { seq: number; type: string; data: Record<string, any> };
-type ApiFn = <T>(p: string, method?: string, body?: unknown) => Promise<T>;
+import { Approval, AgentRun, AgentEvent, ApiFn, client } from "./client";
+import { Preview } from "./preview";
 
 const ACTIVE = ["starting", "running", "waiting_approval"];
 
@@ -43,6 +36,7 @@ export function registerDroid(ctx: vscode.ExtensionContext, api: ApiFn, openDash
   const tree = new ApprovalTree();
   const out = vscode.window.createOutputChannel("LocalPilot Droid");
   const notified = new Set<string>();
+  const preview = new Preview();
 
   const decide = async (a: Approval, decision: "approve" | "deny") => {
     try {
@@ -54,14 +48,24 @@ export function registerDroid(ctx: vscode.ExtensionContext, api: ApiFn, openDash
     await poll();
   };
 
-  const review = async (a: Approval) => {
+  const review = async (a: Approval, showDetails = true) => {
+    a = await api<Approval>(`/approvals/${a.id}`);
+    if (showDetails) await preview.details(a);
     const pick = await vscode.window.showQuickPick(
-      [{ label: "$(check) Approve once", id: "approve" }, { label: "$(close) Deny", id: "deny" },
+      [{ label: "$(diff) Preview proposed diff", id: "diff" },
+       ...(!a.details.checkpoint_error && a.status === "pending" ? [{ label: "$(check) Approve once", id: "approve" }] : []),
+       ...(a.status === "pending" ? [{ label: "$(close) Deny", id: "deny" }] : []),
        { label: "$(link-external) Open in dashboard", id: "open" }],
-      { placeHolder: `${a.title} (${a.risk} risk)`, title: describe(a).split("\n")[0] || a.title },
+      { placeHolder: a.details.checkpoint_error || `${a.title} (${a.risk} risk)`, title: "Review the read-only proposal before deciding" },
     );
-    if (pick?.id === "approve" || pick?.id === "deny") await decide(a, pick.id);
-    if (pick?.id === "open") await openDashboard("#/agent");
+    if (pick?.id === "approve" || pick?.id === "deny") {
+      const choice = await vscode.window.showWarningMessage(
+        `${pick.id === "approve" ? "Approve once" : "Deny"}: ${a.title} (${a.risk} risk)?`,
+        { modal: true }, pick.id === "approve" ? "Approve once" : "Deny");
+      if (choice) await decide(a, pick.id);
+    }
+    if (pick?.id === "diff") { await preview.diff(a); await review(a, false); }
+    if (pick?.id === "open") await openDashboard(a.run_id ? `#/agents/runs/${a.run_id}` : "#/decisions/approvals");
   };
 
   const poll = async () => {
@@ -71,9 +75,10 @@ export function registerDroid(ctx: vscode.ExtensionContext, api: ApiFn, openDash
       vscode.commands.executeCommand("setContext", "localpilot.pendingApprovals", pending.length);
       for (const a of pending.filter((x) => !notified.has(x.id))) {
         notified.add(a.id);
-        vscode.window.showWarningMessage(`Droid asks: ${a.title} (${a.risk} risk)`, "Approve once", "Deny", "Review")
-          .then((c) => (c === "Approve once" ? decide(a, "approve") : c === "Deny" ? decide(a, "deny") : c ? review(a) : undefined));
+        vscode.window.showWarningMessage(`Droid asks: ${a.title} (${a.risk} risk)`, "Review")
+          .then((c) => c ? review(a) : undefined);
       }
+      for (const id of notified) if (!pending.some(a => a.id === id)) notified.delete(id);
     } catch {
       tree.set([]);
     }
@@ -131,7 +136,8 @@ export function registerDroid(ctx: vscode.ExtensionContext, api: ApiFn, openDash
         { placeHolder: "Autonomy" });
       if (!autonomy) return;
       const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-      const allowed = models.workspaces.find((w) => ws && ws.toLowerCase().startsWith(w.toLowerCase()));
+      const allowed = models.workspaces.find((w) => ws && (ws.toLowerCase() === w.toLowerCase() ||
+        ws.toLowerCase().startsWith(w.replace(/[\\/]$/, "").toLowerCase() + (ws.includes("\\") ? "\\" : "/"))));
       Object.assign(body, { model: model.id, autonomy: autonomy.id, cwd: allowed ? ws : models.workspaces[0] });
     }
     try {
@@ -140,7 +146,7 @@ export function registerDroid(ctx: vscode.ExtensionContext, api: ApiFn, openDash
       if (done.session_id) {
         const next = await vscode.window.showInformationMessage(`Droid run ${done.status}.`, "Continue", "Open dashboard");
         if (next === "Continue") await askDroid(done);
-        if (next === "Open dashboard") await openDashboard("#/agent");
+        if (next === "Open dashboard") await openDashboard(`#/agents/runs/${done.id}`);
       }
     } catch (e) {
       vscode.window.showErrorMessage(`LocalPilot Droid: ${(e as Error).message}`);
@@ -148,11 +154,27 @@ export function registerDroid(ctx: vscode.ExtensionContext, api: ApiFn, openDash
   };
 
   ctx.subscriptions.push(
-    out,
+    out, preview,
     vscode.window.registerTreeDataProvider("localpilot.approvals", tree),
-    vscode.commands.registerCommand("localpilot.askDroid", () => askDroid()),
+    vscode.commands.registerCommand("localpilot.askDroidAdvanced", () => askDroid()),
     vscode.commands.registerCommand("localpilot.reviewApproval", (a?: Approval) => (a ? review(a) : tree.items[0] && review(tree.items[0]))),
     vscode.commands.registerCommand("localpilot.refreshApprovals", poll),
+    vscode.commands.registerCommand("localpilot.previewApproval", (a?: Approval) => a ? preview.diff(a) : tree.items[0] && preview.diff(tree.items[0])),
+    vscode.commands.registerCommand("localpilot.rollback", async () => {
+      const runs = await client.agents.runs();
+      const run = await vscode.window.showQuickPick(runs.map(r => ({ label: r.title, description: r.status, id: r.id })),
+        { placeHolder: "Choose a run to inspect its file checkpoints" });
+      if (!run) return;
+      const items = (await client.agents.checkpoints(run.id)).filter(c => ["completed", "rollback_partial"].includes(c.status));
+      if (!items.length) { await vscode.window.showInformationMessage("No verified file checkpoint is available for this run. Commands and unknown post-images cannot be rolled back."); return; }
+      const pick = await vscode.window.showQuickPick(items.map(c => ({ label: c.files.map(f => f.path).join(", "), description: c.status, id: c.id })),
+        { placeHolder: "Choose a checkpoint" });
+      if (pick && await vscode.window.showWarningMessage(`Restore original files: ${pick.label}? Newer edits block rollback. Git history and index stay unchanged.`,
+        { modal: true }, "Restore files")) {
+        await client.agents.rollback(pick.id);
+        await vscode.window.showInformationMessage("Original files restored. The outcome is recorded in History.");
+      }
+    }),
   );
   poll();
   const timer = setInterval(poll, 4000);

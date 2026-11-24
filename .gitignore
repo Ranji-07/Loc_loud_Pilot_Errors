@@ -11,3 +11,4 @@ backend/.env
 *.tsbuildinfo
 colur.md
 prompt-ui-ux.md
+docs

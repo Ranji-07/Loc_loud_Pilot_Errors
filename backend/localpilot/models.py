@@ -131,3 +131,102 @@ class Approval(Base):
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class Project(Base):
+    __tablename__ = "projects"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    root: Mapped[str] = mapped_column(Text, unique=True)
+    instructions: Mapped[str] = mapped_column(Text, default="")
+    architecture: Mapped[str] = mapped_column(Text, default="")
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class ContextItem(Base):
+    __tablename__ = "context_items"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(30))
+    title: Mapped[str] = mapped_column(String(200))
+    content: Mapped[str] = mapped_column(Text, default="")
+    path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_hash: Mapped[str] = mapped_column(String(64))
+    source_commit: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class AgentProfile(Base):
+    __tablename__ = "agent_profiles"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    role: Mapped[str] = mapped_column(String(120), default="Coding")
+    adapter: Mapped[str] = mapped_column(String(30), default="droid")
+    instructions: Mapped[str] = mapped_column(Text, default="")
+    model: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class SavedPrompt(Base):
+    __tablename__ = "saved_prompts"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class PromptVersion(Base):
+    __tablename__ = "prompt_versions"
+    __table_args__ = (UniqueConstraint("prompt_id", "version"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    prompt_id: Mapped[str] = mapped_column(ForeignKey("saved_prompts.id"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    agent_id: Mapped[str] = mapped_column(ForeignKey("agent_profiles.id"), index=True)
+    objective: Mapped[str] = mapped_column(Text)
+    requirements: Mapped[str] = mapped_column(Text, default="")
+    acceptance: Mapped[str] = mapped_column(Text, default="")
+    model: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    continue_run_id: Mapped[str | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True)
+    context_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+    include_instructions: Mapped[bool] = mapped_column(Boolean, default=False)
+    include_architecture: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(30), default="draft", index=True)
+    run_id: Mapped[str | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    queued_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    allow_cloud: Mapped[bool] = mapped_column(Boolean, default=False)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class TaskAttempt(Base):
+    __tablename__ = "task_attempts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    task_id: Mapped[str] = mapped_column(ForeignKey("tasks.id"), index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("agent_runs.id"), unique=True)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class FileCheckpoint(Base):
+    __tablename__ = "file_checkpoints"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("agent_runs.id"), index=True)
+    approval_id: Mapped[str] = mapped_column(String(36), unique=True)
+    root: Mapped[str] = mapped_column(Text)
+    files: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(30), default="prepared")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

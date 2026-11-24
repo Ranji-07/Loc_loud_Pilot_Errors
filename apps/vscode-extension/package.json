@@ -1,8 +1,8 @@
 {
   "name": "localpilot",
   "displayName": "LocalPilot",
-  "description": "Status, guided setup and usage for the LocalPilot self-hosted AI engineering platform.",
-  "version": "0.2.0",
+  "description": "Project chat, tasks, context, agents and shared approvals for LocalPilot.",
+  "version": "0.3.0",
   "publisher": "localpilot",
   "license": "MIT",
   "private": true,
@@ -12,7 +12,7 @@
   "categories": [
     "Other"
   ],
-  "main": "./out/extension.js",
+  "main": "./out/apps/vscode-extension/src/extension.js",
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -82,6 +82,97 @@
         "command": "localpilot.refreshApprovals",
         "title": "LocalPilot: Refresh Approvals",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "localpilot.askDroidAdvanced",
+        "title": "LocalPilot: Ask Droid (Advanced Legacy Run)"
+      },
+      {
+        "command": "localpilot.previewApproval",
+        "title": "LocalPilot: Preview Proposed Diff",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "localpilot.rollback",
+        "title": "LocalPilot: Restore File Checkpoint",
+        "icon": "$(history)"
+      },
+      {
+        "command": "localpilot.registerProject",
+        "title": "LocalPilot: Register Workspace Project",
+        "icon": "$(add)"
+      },
+      {
+        "command": "localpilot.refreshCockpit",
+        "title": "LocalPilot: Refresh Coding Views",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "localpilot.attachFiles",
+        "title": "LocalPilot: Attach Context Files",
+        "icon": "$(add)"
+      },
+      {
+        "command": "localpilot.openTask",
+        "title": "LocalPilot: Open Task"
+      },
+      {
+        "command": "localpilot.startTask",
+        "title": "LocalPilot: Start or Retry Task",
+        "icon": "$(play)"
+      },
+      {
+        "command": "localpilot.cancelTask",
+        "title": "LocalPilot: Cancel Task",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "localpilot.assignTask",
+        "title": "LocalPilot: Assign Task to Agent"
+      },
+      {
+        "command": "localpilot.createAgent",
+        "title": "LocalPilot: Create Agent Profile",
+        "icon": "$(add)"
+      },
+      {
+        "command": "localpilot.editAgent",
+        "title": "LocalPilot: Edit Agent Profile"
+      },
+      {
+        "command": "localpilot.toggleAgent",
+        "title": "LocalPilot: Enable or Disable Agent"
+      },
+      {
+        "command": "localpilot.editInstructions",
+        "title": "LocalPilot: Edit Project Instructions"
+      },
+      {
+        "command": "localpilot.inspectContext",
+        "title": "LocalPilot: Inspect Context"
+      },
+      {
+        "command": "localpilot.refreshContext",
+        "title": "LocalPilot: Refresh Context Source",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "localpilot.addMemory",
+        "title": "LocalPilot: Add Project Memory",
+        "icon": "$(add)"
+      },
+      {
+        "command": "localpilot.saveContextEditor",
+        "title": "LocalPilot: Save Context or Agent Editor",
+        "icon": "$(save)"
+      },
+      {
+        "command": "localpilot.reviewSelection",
+        "title": "LocalPilot: Review Selected Code"
+      },
+      {
+        "command": "localpilot.loadMoreTasks",
+        "title": "LocalPilot: Load Older Tasks"
       }
     ],
     "viewsContainers": {
@@ -96,16 +187,35 @@
     "views": {
       "localpilot": [
         {
+          "id": "localpilot.chat",
+          "name": "Chat",
+          "type": "webview"
+        },
+        {
+          "id": "localpilot.tasks",
+          "name": "Tasks"
+        },
+        {
+          "id": "localpilot.agents",
+          "name": "Agents"
+        },
+        {
           "id": "localpilot.approvals",
-          "name": "Pending approvals"
+          "name": "Changes"
+        },
+        {
+          "id": "localpilot.context",
+          "name": "Context"
         },
         {
           "id": "localpilot.health",
-          "name": "Health"
+          "name": "Health",
+          "visibility": "collapsed"
         },
         {
           "id": "localpilot.guides",
-          "name": "Setup guides"
+          "name": "Setup guides",
+          "visibility": "collapsed"
         }
       ]
     },
@@ -130,6 +240,56 @@
           "command": "localpilot.refreshApprovals",
           "when": "view == localpilot.approvals",
           "group": "navigation"
+        },
+        {
+          "command": "localpilot.refreshCockpit",
+          "when": "view == localpilot.tasks || view == localpilot.agents || view == localpilot.context",
+          "group": "navigation"
+        },
+        {
+          "command": "localpilot.createAgent",
+          "when": "view == localpilot.agents",
+          "group": "navigation"
+        },
+        {
+          "command": "localpilot.attachFiles",
+          "when": "view == localpilot.context",
+          "group": "navigation"
+        },
+        {
+          "command": "localpilot.addMemory",
+          "when": "view == localpilot.context",
+          "group": "navigation"
+        },
+        {
+          "command": "localpilot.rollback",
+          "when": "view == localpilot.approvals",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "localpilot.startTask",
+          "when": "view == localpilot.tasks && viewItem == task",
+          "group": "inline"
+        },
+        {
+          "command": "localpilot.cancelTask",
+          "when": "view == localpilot.tasks && viewItem == activeTask",
+          "group": "inline"
+        },
+        {
+          "command": "localpilot.assignTask",
+          "when": "view == localpilot.tasks && viewItem == task"
+        },
+        {
+          "command": "localpilot.toggleAgent",
+          "when": "view == localpilot.agents && viewItem == agentProfile"
+        },
+        {
+          "command": "localpilot.refreshContext",
+          "when": "view == localpilot.context && viewItem == contextItem",
+          "group": "inline"
         }
       ]
     },
@@ -140,13 +300,32 @@
       },
       {
         "view": "localpilot.approvals",
-        "contents": "Nothing is waiting for your approval.\n[Ask Droid](command:localpilot.askDroid)"
+        "contents": "Nothing is waiting for approval.\n[Open native Git](command:workbench.view.scm)\n[Inspect file checkpoints](command:localpilot.rollback)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "localpilot.askDroid",
+        "key": "ctrl+alt+l",
+        "mac": "cmd+alt+l"
+      },
+      {
+        "command": "localpilot.reviewSelection",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r",
+        "when": "editorHasSelection"
+      },
+      {
+        "command": "localpilot.saveContextEditor",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s",
+        "when": "editorTextFocus"
       }
     ]
   },
   "scripts": {
     "compile": "tsc -p .",
-    "package": "tsc -p . && vsce package --allow-missing-repository --skip-license --out localpilot-0.2.0.vsix"
+    "package": "tsc -p . && vsce package --allow-missing-repository --skip-license --out localpilot-0.3.0.vsix"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
