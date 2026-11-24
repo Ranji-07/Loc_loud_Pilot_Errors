@@ -132,6 +132,17 @@ async def check_vscode() -> Check:
                  fix="Run the 'VS Code extension' guide")
 
 
+async def check_droid(s: Settings) -> Check:
+    exe = s.droid_executable or shutil.which("droid")
+    if not exe:
+        return Check("droid", "not_configured", "Droid CLI not on PATH (needed for the Agent page)",
+                     fix="Install Droid from https://docs.factory.ai, then restart LocalPilot")
+    rc, out = await asyncio.to_thread(_run, [exe, "--version"], 15)
+    if rc != 0:
+        return Check("droid", "warn", f"Droid CLI found but did not answer: {redact(out)[:200]}")
+    return Check("droid", "ok", f"Droid CLI {out.splitlines()[-1] if out else ''} at {exe}")
+
+
 async def check_local_gpu() -> Check:
     rc, out = await asyncio.to_thread(_run, ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"], 10)
     if rc == 127:
@@ -161,6 +172,7 @@ async def run_all(s: Settings, db: Database) -> list[dict]:
         _timed("docker", check_docker()),
         _timed("aws", check_aws(s)),
         _timed("vscode", check_vscode()),
+        _timed("droid", check_droid(s)),
         _timed("local_gpu", check_local_gpu()),
         _timed("disk", check_disk(s)),
     )

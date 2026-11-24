@@ -3,8 +3,9 @@ import Overview from "./pages/Overview";
 import SetupGuide from "./pages/SetupGuide";
 import Usage from "./pages/Usage";
 import Audit from "./pages/Audit";
+import Agent from "./pages/Agent";
 
-const PAGES = { overview: "Overview", setup: "Setup guide", usage: "Usage", audit: "Audit log" } as const;
+const PAGES = { overview: "Overview", agent: "Droid agent", setup: "Setup guide", usage: "Usage", audit: "Audit log" } as const;
 type Page = keyof typeof PAGES;
 
 function currentPage(): Page {
@@ -32,6 +33,7 @@ export default function App() {
       </nav>
       <main className="flex-1 p-6 max-w-6xl">
         {page === "overview" && <Overview />}
+        {page === "agent" && <Agent />}
         {page === "setup" && <SetupGuide />}
         {page === "usage" && <Usage />}
         {page === "audit" && <Audit />}

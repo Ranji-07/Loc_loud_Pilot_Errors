@@ -4,6 +4,7 @@ const STATUS_COLORS: Record<string, string> = {
   error: "bg-rose-900 text-rose-300", failed: "bg-rose-900 text-rose-300", interrupted: "bg-rose-900 text-rose-300",
   stopped: "bg-orange-900 text-orange-300", skipped: "bg-slate-700 text-slate-300",
   info: "bg-slate-800 text-slate-300", not_configured: "bg-slate-800 text-slate-400", pending: "bg-slate-800 text-slate-400",
+  starting: "bg-sky-900 text-sky-300", waiting_approval: "bg-amber-900 text-amber-300",
   low: "bg-slate-800 text-slate-300", medium: "bg-amber-900 text-amber-300", high: "bg-rose-900 text-rose-300",
 };
 

@@ -9,6 +9,8 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__, audit
+from .agents.droid import AgentError, DroidManager
+from .agents.routes import router as agents_router
 from .api import router
 from .config import Settings, get_settings
 from .db import Database
@@ -34,11 +36,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         books = load_runbooks(settings.runbooks_dir, settings)
         engine = RunbookEngine(settings, db, CommandPolicy(settings.repo_root), books)
         recovered = engine.recover()
-        app.state.settings, app.state.db, app.state.engine = settings, db, engine
+        droid = DroidManager(settings, db)
+        interrupted = droid.recover()
+        app.state.settings, app.state.db, app.state.engine, app.state.droid = settings, db, engine, droid
         audit.record(db, "server.started", f"{settings.host}:{settings.port}", actor="system",
-                     version=__version__, runbooks=len(books), recovered_steps=recovered)
+                     version=__version__, runbooks=len(books), recovered_steps=recovered, interrupted_agent_runs=interrupted)
         log.info("LocalPilot started", extra={"port": settings.port, "data_dir": str(settings.data_dir)})
         yield
+        await droid.shutdown()
         engine.shutdown()
         audit.record(db, "server.stopped", f"{settings.host}:{settings.port}", actor="system")
         db.dispose()
@@ -68,11 +73,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def runbook_error(_req: Request, exc: RunbookError):
         return JSONResponse({"error": str(exc), "detail": exc.detail}, status_code=exc.status_code)
 
+    @app.exception_handler(AgentError)
+    async def agent_error(_req: Request, exc: AgentError):
+        return JSONResponse({"error": str(exc)}, status_code=exc.status_code)
+
     @app.get("/healthz")
     def healthz() -> dict:
         return {"status": "ok", "version": __version__}
 
     app.include_router(router)
+    app.include_router(agents_router)
 
     if settings.web_dist and (settings.web_dist / "index.html").exists():
         app.mount("/", StaticFiles(directory=settings.web_dist, html=True), name="web")

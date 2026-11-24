@@ -49,3 +49,31 @@ export const api = {
     completion_tokens: number; cost_usd: number }[] }>("GET", "/usage/model-calls"),
   audit: () => req<{ id: number; at: string; actor: string; action: string; target: string; detail: any }[]>("GET", "/audit?limit=200"),
 };
+
+export type AgentModel = { id: string; name: string; location: "local" | "cloud"; custom: boolean };
+export type AgentRun = {
+  id: string; session_id: string | null; parent_run_id: string | null; title: string; prompt: string; model: string;
+  model_location: string; autonomy: string; cwd: string; status: string; state: string; result_text: string | null;
+  error: string | null; usage: Record<string, number>; pending_approvals: number; created_at: string; finished_at: string | null;
+};
+export type AgentEvent = { seq: number; at: string; type: string; data: Record<string, any> };
+export type Approval = {
+  id: string; source: string; run_id: string | null; kind: string; title: string; risk: string;
+  details: { actions?: Record<string, any>[] }; options: string[]; status: string; decided_by: string | null;
+  comment: string | null; created_at: string; decided_at: string | null;
+};
+
+export const agents = {
+  models: (refresh = false) =>
+    req<{ default: string; models: AgentModel[]; workspaces: string[] }>("GET", `/agents/models${refresh ? "?refresh=true" : ""}`),
+  runs: () => req<AgentRun[]>("GET", "/agents/runs"),
+  run: (id: string) => req<AgentRun>("GET", `/agents/runs/${id}`),
+  events: (id: string, after = 0) =>
+    req<{ events: AgentEvent[]; next: number; partial: string; active: boolean }>("GET", `/agents/runs/${id}/events?after=${after}`),
+  start: (body: { prompt: string; model: string; autonomy: string; cwd: string; continue_run_id?: string }) =>
+    req<AgentRun>("POST", "/agents/runs", body),
+  stop: (id: string) => req<AgentRun>("POST", `/agents/runs/${id}/stop`),
+  approvals: (status?: string) => req<Approval[]>("GET", `/approvals${status ? `?status=${status}` : ""}`),
+  decide: (id: string, decision: "approve" | "deny", comment?: string) =>
+    req<Approval>("POST", `/approvals/${id}/decide`, { decision, comment: comment || null }),
+};
