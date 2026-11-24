@@ -1,19 +1,98 @@
 @import "tailwindcss";
 
-body { font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+/* Palette: colur.md ("Forest Ochre"). The nine base colours are used exactly as given.
+   Derived tokens (muted text, hover, soft fills, input borders) are mixes of those colours. */
+:root,
+:root[data-theme="dark"] {
+  --bg: #121513;
+  --surface: #1B1F1C;
+  --border: #323833;
+  --text: #E8EBE5;
+  --accent: #FFBA00;
+  --on-accent: #121513;
+  --success: #4FB286;
+  --warning: #E3A84B;
+  --danger: #E5686B;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #F5F8F6;
+  --surface: #FFFFFF;
+  --border: #DDE7E1;
+  --text: #141A16;
+  --accent: #1E7F57;
+  --on-accent: #FFFFFF;
+  --success: #1E8A5C;
+  --warning: #B7791F;
+  --danger: #D13F43;
+  color-scheme: light;
+}
+
+:root {
+  --muted: color-mix(in srgb, var(--text) 70%, var(--surface));
+  --surface-2: color-mix(in srgb, var(--text) 6%, var(--surface));
+  /* Inputs and focus rings need 3:1 against the surface (WCAG 1.4.11); --border is decorative only. */
+  --border-strong: color-mix(in srgb, var(--text) 45%, var(--surface));
+  --accent-soft: color-mix(in srgb, var(--accent) 15%, var(--surface));
+  --success-soft: color-mix(in srgb, var(--success) 15%, var(--surface));
+  --warning-soft: color-mix(in srgb, var(--warning) 15%, var(--surface));
+  --danger-soft: color-mix(in srgb, var(--danger) 15%, var(--surface));
+  --radius: 6px;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --radius-ui: var(--radius);
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
 
 @utility btn {
-  @apply rounded px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40;
+  @apply inline-flex items-center gap-1.5 rounded-ui px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50;
 }
 @utility btn-primary {
-  @apply btn bg-sky-600 text-white hover:bg-sky-500;
+  @apply btn bg-accent text-on-accent hover:opacity-90;
 }
 @utility btn-danger {
-  @apply btn bg-rose-700 text-white hover:bg-rose-600;
+  @apply btn border border-danger bg-danger-soft text-text hover:bg-danger hover:text-bg;
 }
 @utility btn-ghost {
-  @apply btn bg-slate-800 text-slate-200 hover:bg-slate-700;
+  @apply btn border border-border bg-surface text-text hover:bg-surface-2;
 }
 @utility card {
-  @apply rounded-lg border border-slate-800 bg-slate-900 p-4;
+  @apply rounded-ui border border-border bg-surface p-4;
+}
+@utility field {
+  @apply rounded-ui border border-border-strong bg-bg px-2 py-1 text-sm text-text placeholder:text-muted;
 }

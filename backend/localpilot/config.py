@@ -33,6 +33,17 @@ class Settings(BaseSettings):
     small_model: str = "qwen2.5:0.5b"
     summary_cache_seconds: int = Field(600, ge=0)
 
+    droid_executable: str | None = None
+    droid_default_model: str = "claude-haiku-4-5-20251001"
+    # Local Ollama models offered to Droid through a LocalPilot-owned --settings file (the user's
+    # ~/.factory/settings.json is never modified).
+    droid_local_models: list[dict] = Field(default_factory=lambda: [
+        {"model": "localpilot-coder", "displayName": "Local Ollama: qwen2.5-coder 7B", "maxContextLimit": 24576},
+    ])
+    agent_workspaces: list[Path] = Field(default_factory=list)
+    approval_timeout_seconds: int = Field(1800, ge=30)
+    max_active_agent_runs: int = Field(2, ge=1, le=8)
+
     aws_region: str = "eu-north-1"
     step_timeout_seconds: int = Field(1800, ge=10)
     log_level: str = "INFO"
@@ -52,6 +63,8 @@ class Settings(BaseSettings):
             self.web_dist = self.repo_root / "apps" / "web" / "dist"
         if self.pricing_file is None:
             self.pricing_file = self.repo_root / "config" / "pricing.yaml"
+        if not self.agent_workspaces:
+            self.agent_workspaces = [self.repo_root]
         loopback = self.host == "localhost" or ipaddress.ip_address(self.host).is_loopback
         if not loopback and not self.allow_non_loopback_bind:
             raise ValueError(
@@ -73,7 +86,7 @@ class Settings(BaseSettings):
         return self.data_dir / "aws" / "target.json"
 
     def ensure_dirs(self) -> None:
-        for d in (self.data_dir, self.log_dir, self.aws_state_file.parent):
+        for d in (self.data_dir, self.log_dir, self.aws_state_file.parent, self.data_dir / "droid"):
             d.mkdir(parents=True, exist_ok=True)
 
 

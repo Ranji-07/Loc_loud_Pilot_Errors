@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
+import { registerDroid } from "./droid";
 
 type Check = { name: string; status: string; detail: string };
 type Health = { version: string; status: string; checks: Check[] };
@@ -24,13 +25,19 @@ function serverUrl(): string {
   return url;
 }
 
-async function api<T>(p: string, method = "GET"): Promise<T> {
+async function api<T>(p: string, method = "GET", body?: unknown): Promise<T> {
+  const headers: Record<string, string> = { "x-localpilot-client": "1", "x-localpilot-surface": "vscode" };
+  if (body !== undefined) headers["content-type"] = "application/json";
   const r = await fetch(`${serverUrl()}/api/v1${p}`, {
     method,
-    headers: { "x-localpilot-client": "1" },
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(method === "GET" ? 15000 : 120000),
   });
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  if (!r.ok) {
+    const data = (await r.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error ?? `${r.status} ${r.statusText}`);
+  }
   return (await r.json()) as T;
 }
 
@@ -180,6 +187,7 @@ export function activate(ctx: vscode.ExtensionContext) {
     vscode.window.registerTreeDataProvider("localpilot.health", healthTree),
     vscode.window.registerTreeDataProvider("localpilot.guides", guideTree),
   );
+  registerDroid(ctx, api, (hash) => openInVsCode(`${serverUrl()}/${hash}`), config);
   refresh();
   const timer = setInterval(refresh, Math.max(5, config().get<number>("pollSeconds", 30)) * 1000);
   ctx.subscriptions.push({ dispose: () => clearInterval(timer) });

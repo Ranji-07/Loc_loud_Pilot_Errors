@@ -6,6 +6,7 @@ over an SSH tunnel. Every command runs only after you approve it.
 
 Status: **Phase 1** (foundation: backend, guided setup, usage checks, dashboard, VS Code extension, AWS trial kit).
 See [docs/phase-1/PHASE_1_STATUS.md](docs/phase-1/PHASE_1_STATUS.md) for what is built and tested.
+The **Droid agent** page runs Factory Droid with per-action approval: see [docs/DROID_AGENT.md](docs/DROID_AGENT.md).
 
 ## Quick start (Windows, PowerShell 7)
 
@@ -21,9 +22,10 @@ Then follow **Setup guide** in the dashboard. Full walkthrough: [docs/GETTING_ST
 |---|---|
 | `backend/` | FastAPI control plane (`python -m localpilot`), SQLite + Alembic, runbook engine, command policy, usage probes |
 | `apps/web/` | React + Vite + Tailwind dashboard (built into `apps/web/dist`, served by the backend) |
-| `apps/vscode-extension/` | VS Code extension `localpilot.localpilot` (status bar, health, guides, usage) |
+| `apps/vscode-extension/` | VS Code extension `localpilot.localpilot` (status bar, health, guides, usage, Ask Droid, pending approvals) |
 | `config/runbooks/` | Guided setup steps (YAML) shown in the dashboard |
 | `deploy/aws/` | AWS trial kit: check, quota, network, launch, tunnel, stop, terminate |
+| `deploy/ollama/` | `localpilot-coder` Modelfile (qwen2.5-coder 7B with a 24K context for Droid) |
 | `deploy/litellm/` | Optional LiteLLM gateway (local and remote model routes) |
 | `scripts/` | `start-localpilot.ps1`, `check-usage.ps1` |
 | `docs/phase-0/` | Research, scorecard, requirements matrix, licences, remote-compute options |

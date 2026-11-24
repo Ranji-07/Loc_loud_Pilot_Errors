@@ -8,3 +8,6 @@ __pycache__/
 .pytest_cache/
 backend/.env
 *.egg-info/
+*.tsbuildinfo
+colur.md
+prompt-ui-ux.md
